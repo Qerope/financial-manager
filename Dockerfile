@@ -35,4 +35,4 @@ EXPOSE 27017 3000
 
 RUN npm install --force
 
-CMD mongod --dbpath /db --bind_ip 0.0.0.0 & node server.js && npm run dev
+CMD mongod --dbpath /db --bind_ip 0.0.0.0 & node server.js & npm run dev
