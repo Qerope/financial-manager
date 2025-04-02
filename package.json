@@ -2,6 +2,7 @@
   "name": "financial-tracker-project",
   "version": "0.1.0",
   "private": true,
+  "homepage": "/finc",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
