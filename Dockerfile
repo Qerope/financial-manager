@@ -21,7 +21,6 @@ RUN apt-get install -y \
     python3-dev \
     && apt-get clean
 
-# MongoDB 6.0 installation
 RUN echo "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu focal/mongodb-org/6.0 multiverse" | tee /etc/apt/sources.list.d/mongodb-org-6.0.list \
     && curl -fsSL https://www.mongodb.org/static/pgp/server-6.0.asc | tee /etc/apt/trusted.gpg.d/mongodb.asc \
     && apt-get update -y \
@@ -29,10 +28,11 @@ RUN echo "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu focal/mon
     && apt-get clean
 
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
-    apt-get install -y nodejs
+    apt-get install -y nodejs && \
+    mkdir /db
 
 EXPOSE 27017 3000
 
 RUN npm install --force
 
-CMD mongod --logpath /var/log/mongodb.log && node server.js && npm run dev
+CMD mongod --dbpath /db --bind_ip 0.0.0.0 --logpath /var/log/mongodb.log && node server.js && npm run dev
