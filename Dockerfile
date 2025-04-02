@@ -35,4 +35,4 @@ EXPOSE 27017 3000
 
 RUN npm install --force
 
-CMD mongod --fork --logpath /var/log/mongodb.log && node server.js && npm run dev
+CMD mongod --logpath /var/log/mongodb.log && node server.js && npm run dev
