@@ -3,8 +3,6 @@ FROM ubuntu:20.04
 WORKDIR /usr/src/app
 ENV DEBIAN_FRONTEND=noninteractive
 
-COPY . .
-
 RUN apt-get update && apt-get install -y tzdata \
     && ln -sf /usr/share/zoneinfo/America/New_York /etc/localtime \
     && dpkg-reconfigure -f noninteractive tzdata
@@ -30,6 +28,8 @@ RUN echo "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu focal/mon
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
     apt-get install -y nodejs && \
     mkdir /db
+
+COPY . .
 
 EXPOSE 27017 3000 5000
 

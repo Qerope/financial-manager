@@ -27,17 +27,16 @@ app.use(morgan("common"))
 app.use(cors())
 
 // Routes
-app.use("/api/auth", authRoutes)
-app.use("/api/users", userRoutes)
-app.use("/api/accounts", accountRoutes)
-app.use("/api/transactions", transactionRoutes)
-app.use("/api/categories", categoryRoutes)
-app.use("/api/budgets", budgetRoutes)
-app.use("/api/goals", goalRoutes)
-app.use("/api/reports", reportRoutes)
-app.use("/api/recurring", recurringRoutes)
-// Add the dashboard route mounting after the other route mountings
-app.use("/api/dashboard", dashboardRoutes)
+app.use("/finc/api/auth", authRoutes)
+app.use("/finc/api/users", userRoutes)
+app.use("/finc/api/accounts", accountRoutes)
+app.use("/finc/api/transactions", transactionRoutes)
+app.use("/finc/api/categories", categoryRoutes)
+app.use("/finc/api/budgets", budgetRoutes)
+app.use("/finc/api/goals", goalRoutes)
+app.use("/finc/api/reports", reportRoutes)
+app.use("/finc/api/recurring", recurringRoutes)
+app.use("/finc/api/dashboard", dashboardRoutes)
 
 // Error handling middleware
 app.use((err, req, res, next) => {
