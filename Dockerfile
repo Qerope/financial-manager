@@ -31,7 +31,7 @@ RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
     apt-get install -y nodejs && \
     mkdir /db
 
-EXPOSE 27017 3000
+EXPOSE 27017 3000 5000
 
 RUN npm install --force
 
