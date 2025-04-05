@@ -32,6 +32,7 @@ import {
   DollarSign,
   BarChart4,
   LineChart,
+  Trash2,
   Save,
   RefreshCw,
   Info,
@@ -39,7 +40,7 @@ import {
   AlertCircle,
 } from "lucide-react"
 import { getAverageMonthlyData, getCategoryAverages } from "@/lib/api"
-import { formatCurrency } from "@/lib/utils"
+import { formatCurrency, cn } from "@/lib/utils"
 import {
   Line,
   Bar,
@@ -114,7 +115,6 @@ export default function ProjectionsPage() {
   })
 
   // UI state
-  const [editingCell, setEditingCell] = useState<{ rowId: string; type: "inbound" | "outbound" } | null>(null)
   const [selectedMonth, setSelectedMonth] = useState<MonthData | null>(null)
   const [showCategoryDialog, setShowCategoryDialog] = useState(false)
   const [newCategoryItem, setNewCategoryItem] = useState<{
@@ -255,18 +255,16 @@ export default function ProjectionsPage() {
     setCurrentNetWorth(Number(e.target.value))
   }
 
-  // Handle opening the category editor
-  const handleOpenCategoryEditor = (rowId: string, type: "inbound" | "outbound") => {
-    const month = projectionData.find((m) => m.id === rowId)
-    if (month) {
-      setSelectedMonth(month)
-      setEditingCell({ rowId, type })
-    }
-  }
-
   // Handle adding a new category item
   const handleAddCategoryItem = () => {
-    if (!selectedMonth || !editingCell) return
+    if (!selectedMonth) {
+      toast({
+        title: "Error",
+        description: "No month selected",
+        variant: "destructive",
+      })
+      return
+    }
 
     const { name, amount, type } = newCategoryItem
 
@@ -345,7 +343,7 @@ export default function ProjectionsPage() {
             inbound: month.inbound - (itemToRemove?.amount || 0),
           }
         } else {
-          const itemToRemove = month.outboundItems.find((item) => item.id !== itemId)
+          const itemToRemove = month.outboundItems.find((item) => item.id === itemId)
           return {
             ...month,
             outboundItems: month.outboundItems.filter((item) => item.id !== itemId),
@@ -365,6 +363,13 @@ export default function ProjectionsPage() {
       title: "Item removed",
       description: "The item has been removed from the projection",
     })
+  }
+
+  // Open category dialog for a specific month and type
+  const openCategoryDialog = (month: MonthData, type: "inbound" | "outbound") => {
+    setSelectedMonth(month)
+    setNewCategoryItem({ ...newCategoryItem, type })
+    setShowCategoryDialog(true)
   }
 
   // Save current scenario
@@ -493,6 +498,56 @@ export default function ProjectionsPage() {
     }))
   }
 
+  // View details of a month
+  const viewMonthDetails = (month: MonthData) => {
+    setSelectedMonth(month)
+
+    // Show a dialog with the month details
+    toast({
+      title: month.month,
+      description: (
+        <div className="mt-2 space-y-2">
+          <div className="flex justify-between">
+            <span>Income:</span>
+            <span className="font-medium text-emerald-600">{formatCurrency(month.inbound, user?.currency)}</span>
+          </div>
+          <div className="flex justify-between">
+            <span>Expenses:</span>
+            <span className="font-medium text-rose-600">{formatCurrency(month.outbound, user?.currency)}</span>
+          </div>
+          <div className="flex justify-between">
+            <span>Net:</span>
+            <span className={month.net >= 0 ? "font-medium text-emerald-600" : "font-medium text-rose-600"}>
+              {formatCurrency(month.net, user?.currency)}
+            </span>
+          </div>
+          <div className="flex justify-between">
+            <span>Net Worth:</span>
+            <span className="font-medium">{formatCurrency(month.current, user?.currency)}</span>
+          </div>
+          <div className="flex justify-between pt-2">
+            <Button
+              size="sm"
+              variant="outline"
+              className="w-[48%]"
+              onClick={() => openCategoryDialog(month, "inbound")}
+            >
+              <Plus className="mr-1 h-3 w-3" /> Income
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="w-[48%]"
+              onClick={() => openCategoryDialog(month, "outbound")}
+            >
+              <Plus className="mr-1 h-3 w-3" /> Expense
+            </Button>
+          </div>
+        </div>
+      ),
+    })
+  }
+
   if (isLoading) {
     return (
       <div className="flex h-full items-center justify-center">
@@ -505,7 +560,7 @@ export default function ProjectionsPage() {
   }
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-6 animate-fade-in pb-safe">
       <div className="flex flex-col justify-between space-y-2 md:flex-row md:items-center md:space-y-0">
         <div>
           <h1 className="text-2xl font-bold tracking-tight md:text-3xl">Financial Projections</h1>
@@ -528,11 +583,13 @@ export default function ProjectionsPage() {
           )}
           <Button variant="outline" className="gap-2" onClick={() => setShowSaveDialog(true)}>
             <Save className="h-4 w-4" />
-            Save Scenario
+            <span className="hidden sm:inline">Save Scenario</span>
+            <span className="sm:hidden">Save</span>
           </Button>
           <Button variant="outline" className="gap-2" onClick={handleExport} disabled={isExporting}>
             <Download className="h-4 w-4" />
-            {isExporting ? "Exporting..." : "Export CSV"}
+            <span className="hidden sm:inline">{isExporting ? "Exporting..." : "Export CSV"}</span>
+            <span className="sm:hidden">Export</span>
           </Button>
         </div>
       </div>
@@ -553,7 +610,7 @@ export default function ProjectionsPage() {
               <FileText className="h-4 w-4 text-primary" />
               <span className="font-medium">Current scenario: {currentScenario.name}</span>
               {currentScenario.description && (
-                <span className="text-sm text-muted-foreground"> - {currentScenario.description}</span>
+                <span className="hidden text-sm text-muted-foreground md:inline"> - {currentScenario.description}</span>
               )}
             </div>
             <Button variant="ghost" size="sm" onClick={() => setCurrentScenario(null)}>
@@ -655,17 +712,45 @@ export default function ProjectionsPage() {
             <CardContent>
               <div className="grid gap-6 lg:grid-cols-2">
                 {/* Charts Section */}
-                <div className="space-y-6">
+                <div className="space-y-6 order-2 lg:order-1">
                   <div className="rounded-lg border">
                     <div className="p-4 border-b">
                       <h3 className="text-sm font-medium">Net Worth Projection</h3>
                     </div>
-                    <div className="p-4 h-[300px]">
+                    <div className="p-4 h-[250px] md:h-[300px]">
                       <ResponsiveContainer width="100%" height="100%">
                         <AreaChart data={getChartData()} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                           <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                          <XAxis dataKey="name" tick={{ fontSize: 10 }} />
-                          <YAxis tick={{ fontSize: 10 }} />
+                          <XAxis
+                            dataKey="name"
+                            tick={{ fontSize: 10 }}
+                            angle={-45}
+                            textAnchor="end"
+                            height={60}
+                            interval={0}
+                            tickFormatter={(value) => {
+                              // For mobile, show shorter month names
+                              if (window.innerWidth < 768) {
+                                const parts = value.split(" ")
+                                if (parts.length === 2) {
+                                  return `${parts[0].substring(0, 3)} ${parts[1]}`
+                                }
+                              }
+                              return value
+                            }}
+                          />
+                          <YAxis
+                            tick={{ fontSize: 10 }}
+                            tickFormatter={(value) => {
+                              // Format large numbers with K/M suffix
+                              if (value >= 1000000) {
+                                return `${(value / 1000000).toFixed(1)}M`
+                              } else if (value >= 1000) {
+                                return `${(value / 1000).toFixed(0)}K`
+                              }
+                              return value
+                            }}
+                          />
                           <Tooltip
                             formatter={(value) => formatCurrency(Number(value), user?.currency)}
                             contentStyle={{
@@ -692,12 +777,40 @@ export default function ProjectionsPage() {
                     <div className="p-4 border-b">
                       <h3 className="text-sm font-medium">Income vs Expenses</h3>
                     </div>
-                    <div className="p-4 h-[300px]">
+                    <div className="p-4 h-[250px] md:h-[300px]">
                       <ResponsiveContainer width="100%" height="100%">
                         <ComposedChart data={getChartData()} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                           <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                          <XAxis dataKey="name" tick={{ fontSize: 10 }} />
-                          <YAxis tick={{ fontSize: 10 }} />
+                          <XAxis
+                            dataKey="name"
+                            tick={{ fontSize: 10 }}
+                            angle={-45}
+                            textAnchor="end"
+                            height={60}
+                            interval={0}
+                            tickFormatter={(value) => {
+                              // For mobile, show shorter month names
+                              if (window.innerWidth < 768) {
+                                const parts = value.split(" ")
+                                if (parts.length === 2) {
+                                  return `${parts[0].substring(0, 3)} ${parts[1]}`
+                                }
+                              }
+                              return value
+                            }}
+                          />
+                          <YAxis
+                            tick={{ fontSize: 10 }}
+                            tickFormatter={(value) => {
+                              // Format large numbers with K/M suffix
+                              if (value >= 1000000) {
+                                return `${(value / 1000000).toFixed(1)}M`
+                              } else if (value >= 1000) {
+                                return `${(value / 1000).toFixed(0)}K`
+                              }
+                              return value
+                            }}
+                          />
                           <Tooltip
                             formatter={(value) => formatCurrency(Number(value), user?.currency)}
                             contentStyle={{
@@ -718,46 +831,41 @@ export default function ProjectionsPage() {
                 </div>
 
                 {/* Table Section */}
-                <div className="rounded-lg border" ref={tableRef}>
+                <div className="rounded-lg border order-1 lg:order-2" ref={tableRef}>
                   <div className="p-4 border-b">
                     <h3 className="text-sm font-medium">Monthly Breakdown</h3>
                   </div>
-                  <ScrollArea className="h-[630px]">
+                  <ScrollArea className="h-[400px] md:h-[630px]">
                     <Table>
                       <TableHeader className="sticky top-0 bg-card">
                         <TableRow>
-                          <TableHead className="w-[180px]">Month</TableHead>
+                          <TableHead className="w-[120px] md:w-[180px]">Month</TableHead>
                           <TableHead>Income</TableHead>
                           <TableHead>Expenses</TableHead>
-                          <TableHead>Net</TableHead>
-                          <TableHead>Net Worth</TableHead>
+                          <TableHead className="hidden md:table-cell">Net</TableHead>
+                          <TableHead className="hidden md:table-cell">Net Worth</TableHead>
+                          <TableHead className="w-[50px]"></TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {projectionData.map((row) => (
-                          <TableRow key={row.id}>
-                            <TableCell className="font-medium">{row.month}</TableCell>
+                          <TableRow
+                            key={row.id}
+                            className="cursor-pointer hover:bg-muted/50"
+                            onClick={() => viewMonthDetails(row)}
+                          >
+                            <TableCell className="font-medium">
+                              <div className="truncate max-w-[100px] md:max-w-full">{row.month}</div>
+                            </TableCell>
                             <TableCell>
                               <div className="flex items-center justify-between">
                                 <span className="text-emerald-600 dark:text-emerald-400">
                                   {formatCurrency(row.inbound, user?.currency)}
                                 </span>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-8 w-8 p-0"
-                                  onClick={() => {
-                                    setSelectedMonth(row)
-                                    setNewCategoryItem({ ...newCategoryItem, type: "inbound" })
-                                    setShowCategoryDialog(true)
-                                  }}
-                                >
-                                  <Edit className="h-4 w-4" />
-                                </Button>
                               </div>
                               {row.inboundItems.length > 0 && (
                                 <div className="mt-1 text-xs text-muted-foreground">
-                                  <span>+{row.inboundItems.length} custom items</span>
+                                  <span>+{row.inboundItems.length} custom</span>
                                 </div>
                               )}
                             </TableCell>
@@ -766,35 +874,39 @@ export default function ProjectionsPage() {
                                 <span className="text-rose-600 dark:text-rose-400">
                                   {formatCurrency(row.outbound, user?.currency)}
                                 </span>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-8 w-8 p-0"
-                                  onClick={() => {
-                                    setSelectedMonth(row)
-                                    setNewCategoryItem({ ...newCategoryItem, type: "outbound" })
-                                    setShowCategoryDialog(true)
-                                  }}
-                                >
-                                  <Edit className="h-4 w-4" />
-                                </Button>
                               </div>
                               {row.outboundItems.length > 0 && (
                                 <div className="mt-1 text-xs text-muted-foreground">
-                                  <span>+{row.outboundItems.length} custom items</span>
+                                  <span>+{row.outboundItems.length} custom</span>
                                 </div>
                               )}
                             </TableCell>
                             <TableCell
-                              className={
+                              className={cn(
+                                "hidden md:table-cell",
                                 row.net >= 0
                                   ? "text-emerald-600 dark:text-emerald-400"
-                                  : "text-rose-600 dark:text-rose-400"
-                              }
+                                  : "text-rose-600 dark:text-rose-400",
+                              )}
                             >
                               {formatCurrency(row.net, user?.currency)}
                             </TableCell>
-                            <TableCell className="font-medium">{formatCurrency(row.current, user?.currency)}</TableCell>
+                            <TableCell className="font-medium hidden md:table-cell">
+                              {formatCurrency(row.current, user?.currency)}
+                            </TableCell>
+                            <TableCell>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  openCategoryDialog(row, "inbound")
+                                }}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                            </TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
@@ -816,6 +928,7 @@ export default function ProjectionsPage() {
                       <TableHead>Expenses</TableHead>
                       <TableHead>Net</TableHead>
                       <TableHead>Projected Net Worth</TableHead>
+                      <TableHead className="w-[50px]"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -827,18 +940,6 @@ export default function ProjectionsPage() {
                             <span className="text-emerald-600 dark:text-emerald-400">
                               {formatCurrency(row.inbound, user?.currency)}
                             </span>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 w-8 p-0"
-                              onClick={() => {
-                                setSelectedMonth(row)
-                                setNewCategoryItem({ ...newCategoryItem, type: "inbound" })
-                                setShowCategoryDialog(true)
-                              }}
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
                           </div>
                           {row.inboundItems.length > 0 && (
                             <div className="mt-1 text-xs text-muted-foreground">
@@ -851,18 +952,6 @@ export default function ProjectionsPage() {
                             <span className="text-rose-600 dark:text-rose-400">
                               {formatCurrency(row.outbound, user?.currency)}
                             </span>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 w-8 p-0"
-                              onClick={() => {
-                                setSelectedMonth(row)
-                                setNewCategoryItem({ ...newCategoryItem, type: "outbound" })
-                                setShowCategoryDialog(true)
-                              }}
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
                           </div>
                           {row.outboundItems.length > 0 && (
                             <div className="mt-1 text-xs text-muted-foreground">
@@ -878,6 +967,18 @@ export default function ProjectionsPage() {
                           {formatCurrency(row.net, user?.currency)}
                         </TableCell>
                         <TableCell className="font-medium">{formatCurrency(row.current, user?.currency)}</TableCell>
+                        <TableCell>
+                          <div className="flex">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => openCategoryDialog(row, "inbound")}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -887,12 +988,12 @@ export default function ProjectionsPage() {
           </TabsContent>
         </Tabs>
 
-        <CardFooter className="flex justify-between">
+        <CardFooter className="flex flex-col sm:flex-row justify-between gap-4">
           <div className="flex items-center text-sm text-muted-foreground">
             <Info className="mr-1 h-4 w-4" />
-            Click on the edit button next to income or expenses to add custom items
+            <span className="text-xs sm:text-sm">Tap on a row or edit button to add custom items</span>
           </div>
-          <Button variant="outline" className="gap-2" onClick={handleReset}>
+          <Button variant="outline" className="gap-2 w-full sm:w-auto" onClick={handleReset}>
             <RefreshCw className="h-4 w-4" />
             Reset to Defaults
           </Button>
@@ -947,7 +1048,7 @@ export default function ProjectionsPage() {
 
       {/* Dialog for adding new category items */}
       <Dialog open={showCategoryDialog} onOpenChange={setShowCategoryDialog}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>Add {newCategoryItem.type === "inbound" ? "Income" : "Expense"} Item</DialogTitle>
             <DialogDescription>
@@ -1026,6 +1127,35 @@ export default function ProjectionsPage() {
                 </div>
               </div>
             )}
+
+            {selectedMonth &&
+              selectedMonth[newCategoryItem.type === "inbound" ? "inboundItems" : "outboundItems"].length > 0 && (
+                <div className="grid gap-2 mt-2">
+                  <Label>Existing Items</Label>
+                  <div className="space-y-2 max-h-[150px] overflow-y-auto">
+                    {selectedMonth[newCategoryItem.type === "inbound" ? "inboundItems" : "outboundItems"].map(
+                      (item) => (
+                        <div key={item.id} className="flex items-center justify-between rounded-md bg-muted p-2">
+                          <span className="text-sm">{item.name}</span>
+                          <div className="flex items-center">
+                            <span className="text-sm font-medium mr-2">
+                              {formatCurrency(item.amount, user?.currency)}
+                            </span>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
+                              onClick={() => handleRemoveCategoryItem(selectedMonth.id, item.id, newCategoryItem.type)}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </div>
+                      ),
+                    )}
+                  </div>
+                </div>
+              )}
           </div>
 
           <DialogFooter>
@@ -1039,7 +1169,7 @@ export default function ProjectionsPage() {
 
       {/* Dialog for saving scenario */}
       <Dialog open={showSaveDialog} onOpenChange={setShowSaveDialog}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>Save Projection Scenario</DialogTitle>
             <DialogDescription>Save your current projection settings and data for future reference</DialogDescription>
