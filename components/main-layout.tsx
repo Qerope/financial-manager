@@ -1,102 +1,56 @@
 "use client"
 
+import type React from "react"
+
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { useAuth } from "@/context/auth-context"
-import { Button } from "@/components/ui/button"
 import { ModeToggle } from "@/components/mode-toggle"
+import { Button } from "@/components/ui/button"
+import { MobileNav } from "@/components/mobile-nav"
+import { useAuth } from "@/context/auth-context"
+import { Logo } from "@/components/logo"
+import { PWAInstallPrompt } from "@/components/pwa-install-prompt"
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import {
-  Home,
+  LayoutDashboard,
   CreditCard,
   Receipt,
   PieChart,
-  Settings,
-  LogOut,
-  Menu,
-  X,
-  User,
-  Plus,
-  BarChart3,
   Target,
-  Wallet,
+  Settings,
+  Menu,
+  LogOut,
   TrendingUp,
 } from "lucide-react"
-import { MobileNav } from "@/components/mobile-nav"
 
-export function MainLayout({ children }) {
-  const { user, logout } = useAuth()
-  const pathname = usePathname()
+const navItems = [
+  { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+  { name: "Accounts", href: "/accounts", icon: CreditCard },
+  { name: "Transactions", href: "/transactions", icon: Receipt },
+  { name: "Categories", href: "/categories", icon: PieChart },
+  { name: "Budgets", href: "/budgets", icon: Target },
+  { name: "Projections", href: "/projections", icon: TrendingUp },
+  { name: "Reports", href: "/reports", icon: PieChart },
+  { name: "Settings", href: "/settings", icon: Settings },
+]
+
+export function MainLayout({ children }: { children: React.ReactNode }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const pathname = usePathname()
+  const { logout } = useAuth()
   const [isMounted, setIsMounted] = useState(false)
 
   useEffect(() => {
     setIsMounted(true)
   }, [])
 
-  useEffect(() => {
-    // Close mobile menu when route changes
-    setIsMobileMenuOpen(false)
-  }, [pathname])
+  const toggleMobileMenu = () => {
+    setIsMobileMenuOpen(!isMobileMenuOpen)
+  }
 
-  const navItems = [
-    {
-      title: "Dashboard",
-      href: "/dashboard",
-      icon: <Home className="h-5 w-5" />,
-      mobileIcon: <Home className="h-6 w-6" />,
-    },
-    {
-      title: "Accounts",
-      href: "/accounts",
-      icon: <CreditCard className="h-5 w-5" />,
-      mobileIcon: <Wallet className="h-6 w-6" />,
-    },
-    {
-      title: "Transactions",
-      href: "/transactions",
-      icon: <Receipt className="h-5 w-5" />,
-      mobileIcon: <Receipt className="h-6 w-6" />,
-    },
-    {
-      title: "Categories",
-      href: "/categories",
-      icon: <PieChart className="h-5 w-5" />,
-      mobileIcon: <PieChart className="h-6 w-6" />,
-    },
-    {
-      title: "Budgets",
-      href: "/budgets",
-      icon: <Target className="h-5 w-5" />,
-      mobileIcon: <Target className="h-6 w-6" />,
-    },
-    {
-      title: "Reports",
-      href: "/reports",
-      icon: <BarChart3 className="h-5 w-5" />,
-      mobileIcon: <BarChart3 className="h-6 w-6" />,
-    },
-    {
-      title: "Settings",
-      href: "/settings",
-      icon: <Settings className="h-5 w-5" />,
-      mobileIcon: <Settings className="h-6 w-6" />,
-    },
-    {
-      title: "Projections",
-      href: "/projections",
-      icon: <TrendingUp className="h-5 w-5" />,
-      mobileIcon: <TrendingUp className="h-6 w-6" />,
-    },
-  ]
+  const closeMobileMenu = () => {
+    setIsMobileMenuOpen(false)
+  }
 
   if (!isMounted) {
     return null
@@ -104,132 +58,116 @@ export function MainLayout({ children }) {
 
   return (
     <div className="flex min-h-screen flex-col">
-      {/* Desktop Header */}
-      <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b bg-background px-4 md:px-6">
-        <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="md:hidden"
-            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          >
-            {isMobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-          </Button>
-          <Link href="/dashboard" className="flex items-center gap-2">
-            <div className="rounded-full bg-violet-600 p-1">
-              <Wallet className="h-5 w-5 text-white" />
-            </div>
-            <span className="text-lg font-bold">FinanceTracker</span>
+      {/* Desktop sidebar */}
+      <div className="fixed inset-y-0 z-50 hidden w-64 flex-col border-r bg-background md:flex">
+        <div className="flex h-14 items-center border-b px-4">
+          <Link href="/dashboard" className="flex items-center gap-2 font-semibold">
+            <Logo />
           </Link>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="hidden md:flex md:gap-2">
-            <Button asChild variant="outline" size="sm">
-              <Link href="/transactions/new">
-                <Plus className="mr-2 h-4 w-4" />
-                Add Transaction
-              </Link>
+        <nav className="flex-1 overflow-auto py-4">
+          <ul className="grid gap-1 px-2">
+            {navItems.map((item) => {
+              const isActive = pathname === item.href || pathname?.startsWith(`${item.href}/`)
+              const Icon = item.icon
+              return (
+                <li key={item.href}>
+                  <Link
+                    href={item.href}
+                    className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground ${
+                      isActive ? "bg-accent text-accent-foreground" : "transparent"
+                    }`}
+                  >
+                    <Icon className="h-4 w-4" />
+                    {item.name}
+                  </Link>
+                </li>
+              )
+            })}
+          </ul>
+        </nav>
+        <div className="border-t p-4">
+          <div className="flex items-center justify-between">
+            <Button variant="outline" size="sm" onClick={logout}>
+              <LogOut className="mr-2 h-4 w-4" />
+              Logout
             </Button>
             <ModeToggle />
           </div>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="rounded-full">
-                <User className="h-5 w-5" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>
-                <div className="flex flex-col">
-                  <span>
-                    {user?.firstName} {user?.lastName}
-                  </span>
-                  <span className="text-xs font-normal text-muted-foreground">{user?.email}</span>
-                </div>
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem asChild>
-                <Link href="/settings">
-                  <Settings className="mr-2 h-4 w-4" />
-                  Settings
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={logout}>
-                <LogOut className="mr-2 h-4 w-4" />
-                Logout
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+        </div>
+      </div>
+
+      {/* Mobile header */}
+      <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background px-4 sm:static md:hidden">
+        <Button variant="outline" size="icon" onClick={toggleMobileMenu}>
+          <Menu className="h-5 w-5" />
+          <span className="sr-only">Toggle menu</span>
+        </Button>
+        <Link href="/dashboard" className="ml-2">
+          <Logo />
+        </Link>
+        <div className="ml-auto">
+          <ModeToggle />
         </div>
       </header>
 
-      <div className="flex flex-1">
-        {/* Desktop Sidebar */}
-        <aside className="hidden w-64 shrink-0 border-r bg-background md:block">
-          <div className="flex h-full flex-col">
-            <div className="flex-1 overflow-auto py-2">
-              <nav className="grid items-start px-2 text-sm font-medium">
-                {navItems.map((item, index) => (
-                  <Link
-                    key={index}
-                    href={item.href}
-                    className={`flex items-center gap-3 rounded-lg px-3 py-2 transition-all hover:text-foreground ${
-                      pathname === item.href
-                        ? "bg-violet-50 text-violet-700 dark:bg-violet-950/50 dark:text-violet-300"
-                        : "text-muted-foreground"
-                    }`}
-                  >
-                    {item.icon}
-                    {item.title}
-                  </Link>
-                ))}
-              </nav>
-            </div>
-          </div>
-        </aside>
+      {/* Mobile menu */}
+      <MobileNav items={navItems} isOpen={isMobileMenuOpen} onClose={closeMobileMenu} onLogout={logout} />
 
-        {/* Mobile Navigation */}
-        <MobileNav isOpen={isMobileMenuOpen} navItems={navItems} pathname={pathname} />
+      {/* Main content */}
+      <main className="flex-1 md:pl-64">
+        <div className="container mx-auto p-4 md:p-6">{children}</div>
+      </main>
 
-        {/* Main Content */}
-        <main className="flex-1 overflow-auto">
-          <div className="container mx-auto p-4 md:p-6 pb-20 md:pb-6">{children}</div>
-        </main>
-      </div>
-
-      {/* Mobile Bottom Navigation */}
-      <div className="fixed bottom-0 left-0 right-0 z-10 border-t bg-background md:hidden">
-        <div className="grid h-16 grid-cols-5 items-center">
-          {navItems.slice(0, 5).map((item, index) => (
-            <Link key={index} href={item.href} className="flex flex-col items-center justify-center gap-1 text-xs">
-              <div
-                className={`rounded-full p-1 ${
-                  pathname === item.href
-                    ? "bg-violet-100 text-violet-700 dark:bg-violet-950/50 dark:text-violet-300"
-                    : "text-muted-foreground"
-                }`}
-              >
-                {item.mobileIcon}
-              </div>
-              <span
-                className={pathname === item.href ? "text-violet-700 dark:text-violet-300" : "text-muted-foreground"}
-              >
-                {item.title}
-              </span>
-            </Link>
-          ))}
-        </div>
-      </div>
-
-      {/* Mobile Add Transaction Button */}
-      <div className="fixed bottom-20 right-4 z-20 md:hidden">
-        <Button asChild size="icon" className="h-14 w-14 rounded-full shadow-lg" variant="gradient">
-          <Link href="/transactions/new">
-            <Plus className="h-6 w-6" />
+      {/* Mobile bottom navigation */}
+      <div className="fixed bottom-0 left-0 right-0 z-40 border-t bg-background md:hidden">
+        <nav className="grid grid-cols-5 py-2">
+          <Link
+            href="/dashboard"
+            className={`flex flex-col items-center justify-center px-2 py-1 text-xs ${
+              pathname === "/dashboard" ? "text-primary" : "text-muted-foreground"
+            }`}
+          >
+            <LayoutDashboard className="mb-1 h-5 w-5" />
+            Home
           </Link>
-        </Button>
+          <Link
+            href="/accounts"
+            className={`flex flex-col items-center justify-center px-2 py-1 text-xs ${
+              pathname?.startsWith("/accounts") ? "text-primary" : "text-muted-foreground"
+            }`}
+          >
+            <CreditCard className="mb-1 h-5 w-5" />
+            Accounts
+          </Link>
+          <Link href="/transactions/new" className="flex flex-col items-center justify-center px-2 py-1 text-xs">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground">
+              <span className="text-xl font-bold">+</span>
+            </div>
+          </Link>
+          <Link
+            href="/transactions"
+            className={`flex flex-col items-center justify-center px-2 py-1 text-xs ${
+              pathname?.startsWith("/transactions") ? "text-primary" : "text-muted-foreground"
+            }`}
+          >
+            <Receipt className="mb-1 h-5 w-5" />
+            Transactions
+          </Link>
+          <Link
+            href="/projections"
+            className={`flex flex-col items-center justify-center px-2 py-1 text-xs ${
+              pathname?.startsWith("/projections") ? "text-primary" : "text-muted-foreground"
+            }`}
+          >
+            <TrendingUp className="mb-1 h-5 w-5" />
+            Projections
+          </Link>
+        </nav>
       </div>
+
+      {/* PWA Install Prompt */}
+      <PWAInstallPrompt />
     </div>
   )
 }

@@ -4,15 +4,13 @@ import type React from "react"
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { useAuth } from "@/context/auth-context"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { useToast } from "@/hooks/use-toast"
 import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Loader2, ArrowLeft, Save, Trash } from "lucide-react"
-import { getAccount, updateAccount, deleteAccount } from "@/lib/api"
-import { toast } from "@/components/ui/use-toast"
+import { Textarea } from "@/components/ui/textarea"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,53 +22,89 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import { Loader2, Trash2 } from "lucide-react"
+import { fetchWithAuth } from "@/lib/api"
+
+const ACCOUNT_TYPES = [
+  { value: "checking", label: "Checking" },
+  { value: "savings", label: "Savings" },
+  { value: "credit", label: "Credit Card" },
+  { value: "investment", label: "Investment" },
+  { value: "loan", label: "Loan" },
+  { value: "other", label: "Other" },
+]
+
+const CURRENCIES = [
+  { value: "USD", label: "USD - US Dollar" },
+  { value: "EUR", label: "EUR - Euro" },
+  { value: "GBP", label: "GBP - British Pound" },
+  { value: "JPY", label: "JPY - Japanese Yen" },
+  { value: "CAD", label: "CAD - Canadian Dollar" },
+  { value: "AUD", label: "AUD - Australian Dollar" },
+]
+
+const COLORS = [
+  { value: "violet-500", label: "Violet" },
+  { value: "blue-500", label: "Blue" },
+  { value: "green-500", label: "Green" },
+  { value: "red-500", label: "Red" },
+  { value: "yellow-500", label: "Yellow" },
+  { value: "pink-500", label: "Pink" },
+  { value: "indigo-500", label: "Indigo" },
+  { value: "teal-500", label: "Teal" },
+]
 
 export default function EditAccountPage({ params }: { params: { id: string } }) {
-  const { id } = params
   const router = useRouter()
-  const { user } = useAuth()
+  const { toast } = useToast()
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
-  const [error, setError] = useState("")
   const [account, setAccount] = useState({
     name: "",
     type: "checking",
     balance: 0,
     currency: "USD",
     description: "",
-    color: "#3b82f6",
+    color: "violet-500",
   })
+  const [error, setError] = useState("")
 
   useEffect(() => {
     const fetchAccount = async () => {
       try {
         setIsLoading(true)
-        const data = await getAccount(id)
+        const data = await fetchWithAuth(`/api/accounts/${params.id}`)
         setAccount({
-          name: data.account.name,
-          type: data.account.type,
-          balance: data.account.balance,
-          currency: data.account.currency || "USD",
-          description: data.account.description || "",
-          color: data.account.color || "#3b82f6",
+          name: data.name,
+          type: data.type,
+          balance: data.balance,
+          currency: data.currency || "USD",
+          description: data.description || "",
+          color: data.color || "violet-500",
         })
-      } catch (err) {
-        console.error("Failed to fetch account:", err)
+        setError("")
+      } catch (err: any) {
+        console.error("Error fetching account:", err)
         setError("Failed to load account details. Please try again.")
+        toast({
+          title: "Error",
+          description: err.message || "Failed to load account details",
+          variant: "destructive",
+        })
       } finally {
         setIsLoading(false)
       }
     }
 
     fetchAccount()
-  }, [id])
+  }, [params.id, toast])
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
     setAccount((prev) => ({
       ...prev,
-      [name]: name === "balance" ? Number(value) : value,
+      [name]: name === "balance" ? Number.parseFloat(value) || 0 : value,
     }))
   }
 
@@ -83,38 +117,56 @@ export default function EditAccountPage({ params }: { params: { id: string } }) 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setIsSaving(true)
-    setError("")
 
     try {
-      await updateAccount(id, account)
+      setIsSaving(true)
+      setError("")
+
+      await fetchWithAuth(`/api/accounts/${params.id}`, {
+        method: "PUT",
+        body: JSON.stringify(account),
+      })
+
       toast({
         title: "Account updated",
-        description: "Your account has been updated successfully.",
+        description: "Your account has been updated successfully",
       })
+
       router.push("/accounts")
-    } catch (err) {
-      console.error("Failed to update account:", err)
+    } catch (err: any) {
+      console.error("Error updating account:", err)
       setError("Failed to update account. Please try again.")
+      toast({
+        title: "Error",
+        description: err.message || "Failed to update account",
+        variant: "destructive",
+      })
     } finally {
       setIsSaving(false)
     }
   }
 
   const handleDelete = async () => {
-    setIsDeleting(true)
-    setError("")
-
     try {
-      await deleteAccount(id)
+      setIsDeleting(true)
+
+      await fetchWithAuth(`/api/accounts/${params.id}`, {
+        method: "DELETE",
+      })
+
       toast({
         title: "Account deleted",
-        description: "Your account has been deleted successfully.",
+        description: "Your account has been deleted successfully",
       })
+
       router.push("/accounts")
     } catch (err: any) {
-      console.error("Failed to delete account:", err)
-      setError(err.message || "Failed to delete account. Please try again.")
+      console.error("Error deleting account:", err)
+      toast({
+        title: "Error",
+        description: err.message || "Failed to delete account",
+        variant: "destructive",
+      })
     } finally {
       setIsDeleting(false)
     }
@@ -122,72 +174,47 @@ export default function EditAccountPage({ params }: { params: { id: string } }) 
 
   if (isLoading) {
     return (
-      <div className="flex h-full items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="mx-auto h-12 w-12 animate-spin text-primary" />
-          <p className="mt-4 text-lg font-medium text-muted-foreground">Loading account details...</p>
-        </div>
+      <div className="flex h-[50vh] items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     )
   }
 
   return (
-    <div className="space-y-6 animate-fade-in pb-safe">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" onClick={() => router.back()}>
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <h1 className="text-2xl font-bold tracking-tight">Edit Account</h1>
-        </div>
-      </div>
-
-      {error && (
-        <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
-          <p>{error}</p>
-        </div>
-      )}
-
-      <form onSubmit={handleSubmit}>
-        <Card>
-          <CardHeader>
-            <CardTitle>Account Details</CardTitle>
-            <CardDescription>Update your account information</CardDescription>
-          </CardHeader>
+    <div className="mx-auto max-w-2xl">
+      <Card>
+        <CardHeader>
+          <CardTitle>Edit Account</CardTitle>
+          <CardDescription>Update your account details or delete this account</CardDescription>
+        </CardHeader>
+        <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="name">Account Name</Label>
-                <Input
-                  id="name"
-                  name="name"
-                  value={account.name}
-                  onChange={handleChange}
-                  placeholder="e.g., Main Checking"
-                  required
-                />
-              </div>
+            {error && <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">{error}</div>}
+
+            <div className="space-y-2">
+              <Label htmlFor="name">Account Name</Label>
+              <Input id="name" name="name" value={account.name} onChange={handleChange} required />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="type">Account Type</Label>
                 <Select value={account.type} onValueChange={(value) => handleSelectChange("type", value)}>
                   <SelectTrigger id="type">
-                    <SelectValue placeholder="Select account type" />
+                    <SelectValue placeholder="Select type" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="checking">Checking</SelectItem>
-                    <SelectItem value="savings">Savings</SelectItem>
-                    <SelectItem value="credit">Credit Card</SelectItem>
-                    <SelectItem value="investment">Investment</SelectItem>
-                    <SelectItem value="cash">Cash</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
+                    {ACCOUNT_TYPES.map((type) => (
+                      <SelectItem key={type.value} value={type.value}>
+                        {type.label}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
-            </div>
 
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="balance">Current Balance</Label>
+                <Label htmlFor="balance">Balance</Label>
                 <Input
                   id="balance"
                   name="balance"
@@ -198,6 +225,9 @@ export default function EditAccountPage({ params }: { params: { id: string } }) 
                   required
                 />
               </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="currency">Currency</Label>
                 <Select value={account.currency} onValueChange={(value) => handleSelectChange("currency", value)}>
@@ -205,13 +235,30 @@ export default function EditAccountPage({ params }: { params: { id: string } }) 
                     <SelectValue placeholder="Select currency" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="USD">USD ($)</SelectItem>
-                    <SelectItem value="EUR">EUR (€)</SelectItem>
-                    <SelectItem value="GBP">GBP (£)</SelectItem>
-                    <SelectItem value="JPY">JPY (¥)</SelectItem>
-                    <SelectItem value="CAD">CAD ($)</SelectItem>
-                    <SelectItem value="AUD">AUD ($)</SelectItem>
-                    <SelectItem value="INR">INR (₹)</SelectItem>
+                    {CURRENCIES.map((currency) => (
+                      <SelectItem key={currency.value} value={currency.value}>
+                        {currency.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="color">Color</Label>
+                <Select value={account.color} onValueChange={(value) => handleSelectChange("color", value)}>
+                  <SelectTrigger id="color">
+                    <SelectValue placeholder="Select color" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {COLORS.map((color) => (
+                      <SelectItem key={color.value} value={color.value}>
+                        <div className="flex items-center">
+                          <div className={`mr-2 h-3 w-3 rounded-full bg-${color.value}`} />
+                          {color.label}
+                        </div>
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -219,34 +266,20 @@ export default function EditAccountPage({ params }: { params: { id: string } }) 
 
             <div className="space-y-2">
               <Label htmlFor="description">Description (Optional)</Label>
-              <Input
+              <Textarea
                 id="description"
                 name="description"
                 value={account.description}
                 onChange={handleChange}
-                placeholder="Add a description for this account"
+                rows={3}
               />
             </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="color">Account Color</Label>
-              <div className="flex items-center gap-2">
-                <Input
-                  id="color"
-                  name="color"
-                  type="color"
-                  value={account.color}
-                  onChange={handleChange}
-                  className="h-10 w-20"
-                />
-                <span className="text-sm text-muted-foreground">Choose a color for this account</span>
-              </div>
-            </div>
           </CardContent>
+
           <CardFooter className="flex justify-between">
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button variant="destructive" type="button" disabled={isDeleting}>
+                <Button variant="destructive" type="button" disabled={isDeleting || isSaving}>
                   {isDeleting ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -254,7 +287,7 @@ export default function EditAccountPage({ params }: { params: { id: string } }) 
                     </>
                   ) : (
                     <>
-                      <Trash className="mr-2 h-4 w-4" />
+                      <Trash2 className="mr-2 h-4 w-4" />
                       Delete Account
                     </>
                   )}
@@ -262,34 +295,34 @@ export default function EditAccountPage({ params }: { params: { id: string } }) 
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
-                  <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                  <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    This action cannot be undone. This will permanently delete your account and all associated data.
+                    This action cannot be undone. This will permanently delete your account and all associated
+                    transactions.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
+                  <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground">
+                    Delete
+                  </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
 
-            <Button type="submit" disabled={isSaving}>
+            <Button type="submit" disabled={isSaving || isDeleting}>
               {isSaving ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Saving...
                 </>
               ) : (
-                <>
-                  <Save className="mr-2 h-4 w-4" />
-                  Save Changes
-                </>
+                "Save Changes"
               )}
             </Button>
           </CardFooter>
-        </Card>
-      </form>
+        </form>
+      </Card>
     </div>
   )
 }
