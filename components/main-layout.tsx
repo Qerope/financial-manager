@@ -28,6 +28,7 @@ import {
   BarChart3,
   Target,
   Wallet,
+  TrendingUp,
 } from "lucide-react"
 import { MobileNav } from "@/components/mobile-nav"
 
@@ -88,6 +89,12 @@ export function MainLayout({ children }) {
       href: "/settings",
       icon: <Settings className="h-5 w-5" />,
       mobileIcon: <Settings className="h-6 w-6" />,
+    },
+    {
+      title: "Projections",
+      href: "/projections",
+      icon: <TrendingUp className="h-5 w-5" />,
+      mobileIcon: <TrendingUp className="h-6 w-6" />,
     },
   ]
 

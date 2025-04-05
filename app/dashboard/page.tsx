@@ -15,6 +15,7 @@ import {
   Loader2,
   Download,
   Plus,
+  TrendingUp,
 } from "lucide-react"
 import { formatCurrency } from "@/lib/utils"
 import { getAccounts, getTransactions, getBudgets, getGoals, getIncomeVsExpense, getCategories } from "@/lib/api"
@@ -136,7 +137,7 @@ export default function DashboardPage() {
             const category =
               categoryId === "uncategorized"
                 ? { name: "Uncategorized", color: "#9CA3AF" }
-                : categories.find((c) => c._id === categoryId) || { name: "Expense", color: "#9CA3AF" }
+                : categories.find((c) => c._id === categoryId) || { name: "Unknown", color: "#9CA3AF" }
 
             return {
               name: category.name,
@@ -620,6 +621,18 @@ export default function DashboardPage() {
                     <Download className="h-5 w-5" />
                   </div>
                   <span className="mt-2">Export Data</span>
+                </Link>
+              </Button>
+              <Button
+                asChild
+                variant="outline"
+                className="h-auto flex-col items-center justify-center gap-2 p-6 hover-card"
+              >
+                <Link href="/projections">
+                  <div className="rounded-full bg-violet-100 p-3 text-violet-600 dark:bg-violet-900/50 dark:text-violet-300">
+                    <TrendingUp className="h-5 w-5" />
+                  </div>
+                  <span className="mt-2">Financial Projections</span>
                 </Link>
               </Button>
             </div>

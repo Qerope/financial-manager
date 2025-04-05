@@ -192,3 +192,7 @@ export const generateTransaction = (id: string) =>
 // Dashboard
 export const getDashboardData = () => fetchWithAuth("/dashboard")
 
+// Projections
+export const getAverageMonthlyData = () => fetchWithAuth("/projections/average-monthly")
+export const getCategoryAverages = () => fetchWithAuth("/projections/category-averages")
+
