@@ -2,14 +2,13 @@
 
 import type React from "react"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useAuth } from "@/context/auth-context"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import {
   Dialog,
   DialogContent,
@@ -21,6 +20,7 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
   Loader2,
   Plus,
@@ -32,10 +32,11 @@ import {
   DollarSign,
   BarChart4,
   LineChart,
-  Trash2,
   Save,
   RefreshCw,
   Info,
+  FileText,
+  AlertCircle,
 } from "lucide-react"
 import { getAverageMonthlyData, getCategoryAverages } from "@/lib/api"
 import { formatCurrency } from "@/lib/utils"
@@ -74,11 +75,24 @@ interface MonthData {
   outboundItems: CategoryItem[]
 }
 
+interface Scenario {
+  id: string
+  name: string
+  description?: string
+  createdAt: Date
+  baseInbound: number
+  baseOutbound: number
+  startingNetWorth: number
+  startDate: Date
+  months: number
+  projectionData: MonthData[]
+}
+
 export default function ProjectionsPage() {
   const { user } = useAuth()
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState("")
-  const [activeTab, setActiveTab] = useState("table")
+  const [activeTab, setActiveTab] = useState("combined")
 
   // Projection data
   const [startDate, setStartDate] = useState(new Date())
@@ -89,6 +103,15 @@ export default function ProjectionsPage() {
   const [projectionData, setProjectionData] = useState<MonthData[]>([])
   const [incomeCategories, setIncomeCategories] = useState<any[]>([])
   const [expenseCategories, setExpenseCategories] = useState<any[]>([])
+
+  // Scenarios
+  const [scenarios, setScenarios] = useState<Scenario[]>([])
+  const [currentScenario, setCurrentScenario] = useState<Scenario | null>(null)
+  const [showSaveDialog, setShowSaveDialog] = useState(false)
+  const [newScenario, setNewScenario] = useState({
+    name: "",
+    description: "",
+  })
 
   // UI state
   const [editingCell, setEditingCell] = useState<{ rowId: string; type: "inbound" | "outbound" } | null>(null)
@@ -103,6 +126,10 @@ export default function ProjectionsPage() {
     amount: 0,
     type: "inbound",
   })
+
+  // Export
+  const [isExporting, setIsExporting] = useState(false)
+  const tableRef = useRef<HTMLDivElement>(null)
 
   // Fetch initial data
   useEffect(() => {
@@ -128,6 +155,27 @@ export default function ProjectionsPage() {
           Math.round(monthlyData.data.averageExpense),
           monthlyData.data.currentNetWorth,
         )
+
+        // Load saved scenarios from localStorage
+        const savedScenarios = localStorage.getItem("financialScenarios")
+        if (savedScenarios) {
+          try {
+            const parsedScenarios = JSON.parse(savedScenarios)
+            // Convert date strings back to Date objects
+            const processedScenarios = parsedScenarios.map((scenario: any) => ({
+              ...scenario,
+              startDate: new Date(scenario.startDate),
+              createdAt: new Date(scenario.createdAt),
+              projectionData: scenario.projectionData.map((month: any) => ({
+                ...month,
+                date: new Date(month.date),
+              })),
+            }))
+            setScenarios(processedScenarios)
+          } catch (e) {
+            console.error("Failed to parse saved scenarios:", e)
+          }
+        }
       } catch (err) {
         console.error("Failed to load projection data:", err)
         setError("Failed to load projection data. Please try refreshing.")
@@ -262,6 +310,11 @@ export default function ProjectionsPage() {
     setProjectionData(updatedDataWithRecalculation)
     setShowCategoryDialog(false)
     setNewCategoryItem({ name: "", amount: 0, type: "inbound" })
+
+    toast({
+      title: "Item added",
+      description: `Added ${name} to ${selectedMonth.month}`,
+    })
   }
 
   // Recalculate projections after changes
@@ -292,7 +345,7 @@ export default function ProjectionsPage() {
             inbound: month.inbound - (itemToRemove?.amount || 0),
           }
         } else {
-          const itemToRemove = month.outboundItems.find((item) => item.id === itemId)
+          const itemToRemove = month.outboundItems.find((item) => item.id !== itemId)
           return {
             ...month,
             outboundItems: month.outboundItems.filter((item) => item.id !== itemId),
@@ -307,6 +360,121 @@ export default function ProjectionsPage() {
     const updatedDataWithRecalculation = recalculateProjections(updatedData)
 
     setProjectionData(updatedDataWithRecalculation)
+
+    toast({
+      title: "Item removed",
+      description: "The item has been removed from the projection",
+    })
+  }
+
+  // Save current scenario
+  const handleSaveScenario = () => {
+    if (!newScenario.name) {
+      toast({
+        title: "Name required",
+        description: "Please enter a name for your scenario",
+        variant: "destructive",
+      })
+      return
+    }
+
+    const scenario: Scenario = {
+      id: `scenario-${Date.now()}`,
+      name: newScenario.name,
+      description: newScenario.description,
+      createdAt: new Date(),
+      baseInbound,
+      baseOutbound,
+      startingNetWorth: currentNetWorth,
+      startDate: new Date(startDate),
+      months,
+      projectionData: [...projectionData],
+    }
+
+    const updatedScenarios = [...scenarios, scenario]
+    setScenarios(updatedScenarios)
+    setCurrentScenario(scenario)
+    setShowSaveDialog(false)
+    setNewScenario({ name: "", description: "" })
+
+    // Save to localStorage
+    localStorage.setItem("financialScenarios", JSON.stringify(updatedScenarios))
+
+    toast({
+      title: "Scenario saved",
+      description: `"${scenario.name}" has been saved successfully`,
+    })
+  }
+
+  // Load a scenario
+  const handleLoadScenario = (scenarioId: string) => {
+    const scenario = scenarios.find((s) => s.id === scenarioId)
+    if (!scenario) return
+
+    setBaseInbound(scenario.baseInbound)
+    setBaseOutbound(scenario.baseOutbound)
+    setCurrentNetWorth(scenario.startingNetWorth)
+    setStartDate(new Date(scenario.startDate))
+    setMonths(scenario.months)
+    setProjectionData(scenario.projectionData)
+    setCurrentScenario(scenario)
+
+    toast({
+      title: "Scenario loaded",
+      description: `"${scenario.name}" has been loaded successfully`,
+    })
+  }
+
+  // Export to CSV
+  const handleExport = () => {
+    setIsExporting(true)
+
+    try {
+      // Create CSV content
+      let csvContent = "Month,Income,Expenses,Net,Projected Net Worth\n"
+
+      projectionData.forEach((row) => {
+        csvContent += `"${row.month}",${row.inbound},${row.outbound},${row.net},${row.current}\n`
+      })
+
+      // Create download link
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement("a")
+      link.setAttribute("href", url)
+      link.setAttribute("download", `financial-projection-${new Date().toISOString().split("T")[0]}.csv`)
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+
+      toast({
+        title: "Export successful",
+        description: "Your projection data has been exported to CSV",
+      })
+    } catch (err) {
+      console.error("Export failed:", err)
+      toast({
+        title: "Export failed",
+        description: "There was an error exporting your data",
+        variant: "destructive",
+      })
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
+  // Reset to defaults
+  const handleReset = () => {
+    setBaseInbound(Math.round(incomeCategories.reduce((sum, cat) => sum + cat.averageAmount, 0)))
+    setBaseOutbound(Math.round(expenseCategories.reduce((sum, cat) => sum + cat.averageAmount, 0)))
+    setMonths(12)
+    setStartDate(new Date())
+    setCurrentScenario(null)
+
+    toast({
+      title: "Reset complete",
+      description: "Your projection has been reset to default values",
+    })
   }
 
   // Format date for input
@@ -343,19 +511,57 @@ export default function ProjectionsPage() {
           <h1 className="text-2xl font-bold tracking-tight md:text-3xl">Financial Projections</h1>
           <p className="text-muted-foreground">Plan your financial future with detailed projections</p>
         </div>
-        <div className="flex space-x-2">
-          <Button variant="outline" className="gap-2">
+        <div className="flex flex-wrap gap-2">
+          {scenarios.length > 0 && (
+            <Select onValueChange={handleLoadScenario} defaultValue="">
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Load scenario" />
+              </SelectTrigger>
+              <SelectContent>
+                {scenarios.map((scenario) => (
+                  <SelectItem key={scenario.id} value={scenario.id}>
+                    {scenario.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          <Button variant="outline" className="gap-2" onClick={() => setShowSaveDialog(true)}>
             <Save className="h-4 w-4" />
             Save Scenario
           </Button>
-          <Button variant="outline" className="gap-2">
+          <Button variant="outline" className="gap-2" onClick={handleExport} disabled={isExporting}>
             <Download className="h-4 w-4" />
-            Export
+            {isExporting ? "Exporting..." : "Export CSV"}
           </Button>
         </div>
       </div>
 
-      {error && <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">{error}</div>}
+      {error && (
+        <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="h-4 w-4" />
+            <p>{error}</p>
+          </div>
+        </div>
+      )}
+
+      {currentScenario && (
+        <div className="rounded-md bg-muted p-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <FileText className="h-4 w-4 text-primary" />
+              <span className="font-medium">Current scenario: {currentScenario.name}</span>
+              {currentScenario.description && (
+                <span className="text-sm text-muted-foreground"> - {currentScenario.description}</span>
+              )}
+            </div>
+            <Button variant="ghost" size="sm" onClick={() => setCurrentScenario(null)}>
+              Clear
+            </Button>
+          </div>
+        </div>
+      )}
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
@@ -433,21 +639,171 @@ export default function ProjectionsPage() {
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <CardContent className="pb-0">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="combined" className="flex items-center gap-2">
+                <BarChart4 className="h-4 w-4" />
+                Combined View
+              </TabsTrigger>
               <TabsTrigger value="table" className="flex items-center gap-2">
-                <BarChart4 className="h-4 w-4" />
-                Table View
-              </TabsTrigger>
-              <TabsTrigger value="chart" className="flex items-center gap-2">
                 <LineChart className="h-4 w-4" />
-                Net Worth Chart
-              </TabsTrigger>
-              <TabsTrigger value="comparison" className="flex items-center gap-2">
-                <BarChart4 className="h-4 w-4" />
-                Income vs Expenses
+                Table Only
               </TabsTrigger>
             </TabsList>
           </CardContent>
+
+          <TabsContent value="combined" className="m-0">
+            <CardContent>
+              <div className="grid gap-6 lg:grid-cols-2">
+                {/* Charts Section */}
+                <div className="space-y-6">
+                  <div className="rounded-lg border">
+                    <div className="p-4 border-b">
+                      <h3 className="text-sm font-medium">Net Worth Projection</h3>
+                    </div>
+                    <div className="p-4 h-[300px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={getChartData()} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                          <XAxis dataKey="name" tick={{ fontSize: 10 }} />
+                          <YAxis tick={{ fontSize: 10 }} />
+                          <Tooltip
+                            formatter={(value) => formatCurrency(Number(value), user?.currency)}
+                            contentStyle={{
+                              borderRadius: "0.5rem",
+                              border: "none",
+                              boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
+                              backgroundColor: "white",
+                            }}
+                          />
+                          <Area
+                            type="monotone"
+                            dataKey="netWorth"
+                            name="Net Worth"
+                            stroke="#8b5cf6"
+                            fill="#8b5cf680"
+                            activeDot={{ r: 8 }}
+                          />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+
+                  <div className="rounded-lg border">
+                    <div className="p-4 border-b">
+                      <h3 className="text-sm font-medium">Income vs Expenses</h3>
+                    </div>
+                    <div className="p-4 h-[300px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <ComposedChart data={getChartData()} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                          <XAxis dataKey="name" tick={{ fontSize: 10 }} />
+                          <YAxis tick={{ fontSize: 10 }} />
+                          <Tooltip
+                            formatter={(value) => formatCurrency(Number(value), user?.currency)}
+                            contentStyle={{
+                              borderRadius: "0.5rem",
+                              border: "none",
+                              boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
+                              backgroundColor: "white",
+                            }}
+                          />
+                          <Legend />
+                          <Bar dataKey="inbound" name="Income" fill="#10b981" radius={[4, 4, 0, 0]} />
+                          <Bar dataKey="outbound" name="Expenses" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                          <Line type="monotone" dataKey="net" name="Net" stroke="#8b5cf6" strokeWidth={2} />
+                        </ComposedChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Table Section */}
+                <div className="rounded-lg border" ref={tableRef}>
+                  <div className="p-4 border-b">
+                    <h3 className="text-sm font-medium">Monthly Breakdown</h3>
+                  </div>
+                  <ScrollArea className="h-[630px]">
+                    <Table>
+                      <TableHeader className="sticky top-0 bg-card">
+                        <TableRow>
+                          <TableHead className="w-[180px]">Month</TableHead>
+                          <TableHead>Income</TableHead>
+                          <TableHead>Expenses</TableHead>
+                          <TableHead>Net</TableHead>
+                          <TableHead>Net Worth</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {projectionData.map((row) => (
+                          <TableRow key={row.id}>
+                            <TableCell className="font-medium">{row.month}</TableCell>
+                            <TableCell>
+                              <div className="flex items-center justify-between">
+                                <span className="text-emerald-600 dark:text-emerald-400">
+                                  {formatCurrency(row.inbound, user?.currency)}
+                                </span>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-8 w-8 p-0"
+                                  onClick={() => {
+                                    setSelectedMonth(row)
+                                    setNewCategoryItem({ ...newCategoryItem, type: "inbound" })
+                                    setShowCategoryDialog(true)
+                                  }}
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                              </div>
+                              {row.inboundItems.length > 0 && (
+                                <div className="mt-1 text-xs text-muted-foreground">
+                                  <span>+{row.inboundItems.length} custom items</span>
+                                </div>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center justify-between">
+                                <span className="text-rose-600 dark:text-rose-400">
+                                  {formatCurrency(row.outbound, user?.currency)}
+                                </span>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-8 w-8 p-0"
+                                  onClick={() => {
+                                    setSelectedMonth(row)
+                                    setNewCategoryItem({ ...newCategoryItem, type: "outbound" })
+                                    setShowCategoryDialog(true)
+                                  }}
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                              </div>
+                              {row.outboundItems.length > 0 && (
+                                <div className="mt-1 text-xs text-muted-foreground">
+                                  <span>+{row.outboundItems.length} custom items</span>
+                                </div>
+                              )}
+                            </TableCell>
+                            <TableCell
+                              className={
+                                row.net >= 0
+                                  ? "text-emerald-600 dark:text-emerald-400"
+                                  : "text-rose-600 dark:text-rose-400"
+                              }
+                            >
+                              {formatCurrency(row.net, user?.currency)}
+                            </TableCell>
+                            <TableCell className="font-medium">{formatCurrency(row.current, user?.currency)}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </ScrollArea>
+                </div>
+              </div>
+            </CardContent>
+          </TabsContent>
 
           <TabsContent value="table" className="m-0">
             <CardContent className="p-0">
@@ -471,148 +827,48 @@ export default function ProjectionsPage() {
                             <span className="text-emerald-600 dark:text-emerald-400">
                               {formatCurrency(row.inbound, user?.currency)}
                             </span>
-                            <Popover>
-                              <PopoverTrigger asChild>
-                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                                  <Edit className="h-4 w-4" />
-                                </Button>
-                              </PopoverTrigger>
-                              <PopoverContent className="w-80">
-                                <div className="space-y-4">
-                                  <div className="flex items-center justify-between">
-                                    <h4 className="font-medium">Income Details</h4>
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => {
-                                        setSelectedMonth(row)
-                                        setNewCategoryItem({ ...newCategoryItem, type: "inbound" })
-                                        setShowCategoryDialog(true)
-                                      }}
-                                    >
-                                      <Plus className="h-4 w-4 mr-1" /> Add
-                                    </Button>
-                                  </div>
-
-                                  <div className="space-y-2">
-                                    <div className="flex items-center justify-between">
-                                      <span className="text-sm">Base Income</span>
-                                      <span className="text-sm font-medium">
-                                        {formatCurrency(baseInbound, user?.currency)}
-                                      </span>
-                                    </div>
-
-                                    {row.inboundItems.length > 0 && (
-                                      <div className="space-y-1 pt-2">
-                                        {row.inboundItems.map((item) => (
-                                          <div
-                                            key={item.id}
-                                            className="flex items-center justify-between rounded-md bg-muted p-2"
-                                          >
-                                            <span className="text-sm">{item.name}</span>
-                                            <div className="flex items-center">
-                                              <span className="text-sm font-medium mr-2">
-                                                {formatCurrency(item.amount, user?.currency)}
-                                              </span>
-                                              <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
-                                                onClick={() => handleRemoveCategoryItem(row.id, item.id, "inbound")}
-                                              >
-                                                <Trash2 className="h-3 w-3" />
-                                              </Button>
-                                            </div>
-                                          </div>
-                                        ))}
-                                      </div>
-                                    )}
-                                  </div>
-
-                                  <div className="flex items-center justify-between border-t pt-2">
-                                    <span className="font-medium">Total</span>
-                                    <span className="font-medium text-emerald-600 dark:text-emerald-400">
-                                      {formatCurrency(row.inbound, user?.currency)}
-                                    </span>
-                                  </div>
-                                </div>
-                              </PopoverContent>
-                            </Popover>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0"
+                              onClick={() => {
+                                setSelectedMonth(row)
+                                setNewCategoryItem({ ...newCategoryItem, type: "inbound" })
+                                setShowCategoryDialog(true)
+                              }}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
                           </div>
+                          {row.inboundItems.length > 0 && (
+                            <div className="mt-1 text-xs text-muted-foreground">
+                              <span>+{row.inboundItems.length} custom items</span>
+                            </div>
+                          )}
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center justify-between">
                             <span className="text-rose-600 dark:text-rose-400">
                               {formatCurrency(row.outbound, user?.currency)}
                             </span>
-                            <Popover>
-                              <PopoverTrigger asChild>
-                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                                  <Edit className="h-4 w-4" />
-                                </Button>
-                              </PopoverTrigger>
-                              <PopoverContent className="w-80">
-                                <div className="space-y-4">
-                                  <div className="flex items-center justify-between">
-                                    <h4 className="font-medium">Expense Details</h4>
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => {
-                                        setSelectedMonth(row)
-                                        setNewCategoryItem({ ...newCategoryItem, type: "outbound" })
-                                        setShowCategoryDialog(true)
-                                      }}
-                                    >
-                                      <Plus className="h-4 w-4 mr-1" /> Add
-                                    </Button>
-                                  </div>
-
-                                  <div className="space-y-2">
-                                    <div className="flex items-center justify-between">
-                                      <span className="text-sm">Base Expenses</span>
-                                      <span className="text-sm font-medium">
-                                        {formatCurrency(baseOutbound, user?.currency)}
-                                      </span>
-                                    </div>
-
-                                    {row.outboundItems.length > 0 && (
-                                      <div className="space-y-1 pt-2">
-                                        {row.outboundItems.map((item) => (
-                                          <div
-                                            key={item.id}
-                                            className="flex items-center justify-between rounded-md bg-muted p-2"
-                                          >
-                                            <span className="text-sm">{item.name}</span>
-                                            <div className="flex items-center">
-                                              <span className="text-sm font-medium mr-2">
-                                                {formatCurrency(item.amount, user?.currency)}
-                                              </span>
-                                              <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
-                                                onClick={() => handleRemoveCategoryItem(row.id, item.id, "outbound")}
-                                              >
-                                                <Trash2 className="h-3 w-3" />
-                                              </Button>
-                                            </div>
-                                          </div>
-                                        ))}
-                                      </div>
-                                    )}
-                                  </div>
-
-                                  <div className="flex items-center justify-between border-t pt-2">
-                                    <span className="font-medium">Total</span>
-                                    <span className="font-medium text-rose-600 dark:text-rose-400">
-                                      {formatCurrency(row.outbound, user?.currency)}
-                                    </span>
-                                  </div>
-                                </div>
-                              </PopoverContent>
-                            </Popover>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0"
+                              onClick={() => {
+                                setSelectedMonth(row)
+                                setNewCategoryItem({ ...newCategoryItem, type: "outbound" })
+                                setShowCategoryDialog(true)
+                              }}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
                           </div>
+                          {row.outboundItems.length > 0 && (
+                            <div className="mt-1 text-xs text-muted-foreground">
+                              <span>+{row.outboundItems.length} custom items</span>
+                            </div>
+                          )}
                         </TableCell>
                         <TableCell
                           className={
@@ -629,65 +885,6 @@ export default function ProjectionsPage() {
               </ScrollArea>
             </CardContent>
           </TabsContent>
-
-          <TabsContent value="chart" className="m-0">
-            <CardContent>
-              <div className="h-[500px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={getChartData()} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip
-                      formatter={(value) => formatCurrency(Number(value), user?.currency)}
-                      contentStyle={{
-                        borderRadius: "0.5rem",
-                        border: "none",
-                        boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
-                        backgroundColor: "white",
-                      }}
-                    />
-                    <Legend />
-                    <Area
-                      type="monotone"
-                      dataKey="netWorth"
-                      name="Net Worth"
-                      stroke="#8b5cf6"
-                      fill="#8b5cf680"
-                      activeDot={{ r: 8 }}
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </TabsContent>
-
-          <TabsContent value="comparison" className="m-0">
-            <CardContent>
-              <div className="h-[500px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <ComposedChart data={getChartData()} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip
-                      formatter={(value) => formatCurrency(Number(value), user?.currency)}
-                      contentStyle={{
-                        borderRadius: "0.5rem",
-                        border: "none",
-                        boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
-                        backgroundColor: "white",
-                      }}
-                    />
-                    <Legend />
-                    <Bar dataKey="inbound" name="Income" fill="#10b981" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="outbound" name="Expenses" fill="#ef4444" radius={[4, 4, 0, 0]} />
-                    <Line type="monotone" dataKey="net" name="Net" stroke="#8b5cf6" strokeWidth={2} />
-                  </ComposedChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </TabsContent>
         </Tabs>
 
         <CardFooter className="flex justify-between">
@@ -695,7 +892,7 @@ export default function ProjectionsPage() {
             <Info className="mr-1 h-4 w-4" />
             Click on the edit button next to income or expenses to add custom items
           </div>
-          <Button variant="outline" className="gap-2">
+          <Button variant="outline" className="gap-2" onClick={handleReset}>
             <RefreshCw className="h-4 w-4" />
             Reset to Defaults
           </Button>
@@ -741,7 +938,7 @@ export default function ProjectionsPage() {
                 )}
               </p>
               <p className="text-sm text-muted-foreground">
-                {`${Math.round((((projectionData[projectionData.length - 1]?.current || 0) - currentNetWorth) / currentNetWorth) * 100)}% increase over ${months} months`}
+                {`${Math.round((((projectionData[projectionData.length - 1]?.current || 0) - currentNetWorth) / Math.max(currentNetWorth, 1)) * 100)}% increase over ${months} months`}
               </p>
             </div>
           </div>
@@ -836,6 +1033,45 @@ export default function ProjectionsPage() {
               Cancel
             </Button>
             <Button onClick={handleAddCategoryItem}>Add Item</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog for saving scenario */}
+      <Dialog open={showSaveDialog} onOpenChange={setShowSaveDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Save Projection Scenario</DialogTitle>
+            <DialogDescription>Save your current projection settings and data for future reference</DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="scenario-name">Scenario Name</Label>
+              <Input
+                id="scenario-name"
+                placeholder="e.g., Base Case, Optimistic Scenario"
+                value={newScenario.name}
+                onChange={(e) => setNewScenario({ ...newScenario, name: e.target.value })}
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="scenario-description">Description (Optional)</Label>
+              <Input
+                id="scenario-description"
+                placeholder="Brief description of this scenario"
+                value={newScenario.description}
+                onChange={(e) => setNewScenario({ ...newScenario, description: e.target.value })}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowSaveDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveScenario}>Save Scenario</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
