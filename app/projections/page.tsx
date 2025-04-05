@@ -25,7 +25,6 @@ import {
   Loader2,
   Plus,
   Minus,
-  Edit,
   Download,
   Calendar,
   TrendingUp,
@@ -55,6 +54,7 @@ import {
   ComposedChart,
 } from "recharts"
 import { toast } from "@/components/ui/use-toast"
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card"
 
 // Types for our projection data
 interface CategoryItem {
@@ -548,6 +548,24 @@ export default function ProjectionsPage() {
     })
   }
 
+  // Render item list for hover card
+  const renderItemList = (items: CategoryItem[], currency?: string) => {
+    if (items.length === 0) {
+      return <div className="text-sm text-muted-foreground">No custom items</div>
+    }
+
+    return (
+      <div className="space-y-1.5">
+        {items.map((item) => (
+          <div key={item.id} className="flex justify-between text-sm">
+            <span>{item.name}</span>
+            <span className="font-medium">{formatCurrency(item.amount, currency)}</span>
+          </div>
+        ))}
+      </div>
+    )
+  }
+
   if (isLoading) {
     return (
       <div className="flex h-full items-center justify-center">
@@ -858,11 +876,55 @@ export default function ProjectionsPage() {
                               <div className="truncate max-w-[100px] md:max-w-full">{row.month}</div>
                             </TableCell>
                             <TableCell>
-                              <div className="flex items-center justify-between">
-                                <span className="text-emerald-600 dark:text-emerald-400">
-                                  {formatCurrency(row.inbound, user?.currency)}
-                                </span>
-                              </div>
+                              <HoverCard>
+                                <HoverCardTrigger asChild>
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-emerald-600 dark:text-emerald-400">
+                                      {formatCurrency(row.inbound, user?.currency)}
+                                    </span>
+                                  </div>
+                                </HoverCardTrigger>
+                                <HoverCardContent className="w-80">
+                                  <div className="space-y-3">
+                                    <div className="flex items-center justify-between">
+                                      <h4 className="text-sm font-semibold">Income Details</h4>
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="h-8 px-2"
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          openCategoryDialog(row, "inbound")
+                                        }}
+                                      >
+                                        <Plus className="mr-1 h-3 w-3" /> Add
+                                      </Button>
+                                    </div>
+                                    <div className="space-y-1">
+                                      <div className="flex justify-between text-sm">
+                                        <span className="text-muted-foreground">Base Income:</span>
+                                        <span>{formatCurrency(baseInbound, user?.currency)}</span>
+                                      </div>
+                                      {row.inboundItems.length > 0 && (
+                                        <>
+                                          <div className="my-2">
+                                            <div className="text-xs font-medium text-muted-foreground mb-1">
+                                              Custom Items:
+                                            </div>
+                                            {renderItemList(row.inboundItems, user?.currency)}
+                                          </div>
+                                        </>
+                                      )}
+                                      <div className="pt-2 mt-2 border-t flex justify-between text-sm font-medium">
+                                        <span>Total Income:</span>
+                                        <span className="text-emerald-600">
+                                          {formatCurrency(row.inbound, user?.currency)}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </HoverCardContent>
+                              </HoverCard>
                               {row.inboundItems.length > 0 && (
                                 <div className="mt-1 text-xs text-muted-foreground">
                                   <span>+{row.inboundItems.length} custom</span>
@@ -870,11 +932,55 @@ export default function ProjectionsPage() {
                               )}
                             </TableCell>
                             <TableCell>
-                              <div className="flex items-center justify-between">
-                                <span className="text-rose-600 dark:text-rose-400">
-                                  {formatCurrency(row.outbound, user?.currency)}
-                                </span>
-                              </div>
+                              <HoverCard>
+                                <HoverCardTrigger asChild>
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-rose-600 dark:text-rose-400">
+                                      {formatCurrency(row.outbound, user?.currency)}
+                                    </span>
+                                  </div>
+                                </HoverCardTrigger>
+                                <HoverCardContent className="w-80">
+                                  <div className="space-y-3">
+                                    <div className="flex items-center justify-between">
+                                      <h4 className="text-sm font-semibold">Expense Details</h4>
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="h-8 px-2"
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          openCategoryDialog(row, "outbound")
+                                        }}
+                                      >
+                                        <Plus className="mr-1 h-3 w-3" /> Add
+                                      </Button>
+                                    </div>
+                                    <div className="space-y-1">
+                                      <div className="flex justify-between text-sm">
+                                        <span className="text-muted-foreground">Base Expenses:</span>
+                                        <span>{formatCurrency(baseOutbound, user?.currency)}</span>
+                                      </div>
+                                      {row.outboundItems.length > 0 && (
+                                        <>
+                                          <div className="my-2">
+                                            <div className="text-xs font-medium text-muted-foreground mb-1">
+                                              Custom Items:
+                                            </div>
+                                            {renderItemList(row.outboundItems, user?.currency)}
+                                          </div>
+                                        </>
+                                      )}
+                                      <div className="pt-2 mt-2 border-t flex justify-between text-sm font-medium">
+                                        <span>Total Expenses:</span>
+                                        <span className="text-rose-600">
+                                          {formatCurrency(row.outbound, user?.currency)}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </HoverCardContent>
+                              </HoverCard>
                               {row.outboundItems.length > 0 && (
                                 <div className="mt-1 text-xs text-muted-foreground">
                                   <span>+{row.outboundItems.length} custom</span>
@@ -895,17 +1001,32 @@ export default function ProjectionsPage() {
                               {formatCurrency(row.current, user?.currency)}
                             </TableCell>
                             <TableCell>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  openCategoryDialog(row, "inbound")
-                                }}
-                              >
-                                <Edit className="h-4 w-4" />
-                              </Button>
+                              <div className="flex space-x-1">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    openCategoryDialog(row, "inbound")
+                                  }}
+                                  title="Add Income"
+                                >
+                                  <Plus className="h-4 w-4 text-emerald-500" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    openCategoryDialog(row, "outbound")
+                                  }}
+                                  title="Add Expense"
+                                >
+                                  <Plus className="h-4 w-4 text-rose-500" />
+                                </Button>
+                              </div>
                             </TableCell>
                           </TableRow>
                         ))}
@@ -928,7 +1049,7 @@ export default function ProjectionsPage() {
                       <TableHead>Expenses</TableHead>
                       <TableHead>Net</TableHead>
                       <TableHead>Projected Net Worth</TableHead>
-                      <TableHead className="w-[50px]"></TableHead>
+                      <TableHead className="w-[100px]"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -936,11 +1057,52 @@ export default function ProjectionsPage() {
                       <TableRow key={row.id}>
                         <TableCell className="font-medium">{row.month}</TableCell>
                         <TableCell>
-                          <div className="flex items-center justify-between">
-                            <span className="text-emerald-600 dark:text-emerald-400">
-                              {formatCurrency(row.inbound, user?.currency)}
-                            </span>
-                          </div>
+                          <HoverCard>
+                            <HoverCardTrigger asChild>
+                              <div className="flex items-center justify-between">
+                                <span className="text-emerald-600 dark:text-emerald-400">
+                                  {formatCurrency(row.inbound, user?.currency)}
+                                </span>
+                              </div>
+                            </HoverCardTrigger>
+                            <HoverCardContent className="w-80">
+                              <div className="space-y-3">
+                                <div className="flex items-center justify-between">
+                                  <h4 className="text-sm font-semibold">Income Details</h4>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-8 px-2"
+                                    onClick={() => openCategoryDialog(row, "inbound")}
+                                  >
+                                    <Plus className="mr-1 h-3 w-3" /> Add
+                                  </Button>
+                                </div>
+                                <div className="space-y-1">
+                                  <div className="flex justify-between text-sm">
+                                    <span className="text-muted-foreground">Base Income:</span>
+                                    <span>{formatCurrency(baseInbound, user?.currency)}</span>
+                                  </div>
+                                  {row.inboundItems.length > 0 && (
+                                    <>
+                                      <div className="my-2">
+                                        <div className="text-xs font-medium text-muted-foreground mb-1">
+                                          Custom Items:
+                                        </div>
+                                        {renderItemList(row.inboundItems, user?.currency)}
+                                      </div>
+                                    </>
+                                  )}
+                                  <div className="pt-2 mt-2 border-t flex justify-between text-sm font-medium">
+                                    <span>Total Income:</span>
+                                    <span className="text-emerald-600">
+                                      {formatCurrency(row.inbound, user?.currency)}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            </HoverCardContent>
+                          </HoverCard>
                           {row.inboundItems.length > 0 && (
                             <div className="mt-1 text-xs text-muted-foreground">
                               <span>+{row.inboundItems.length} custom items</span>
@@ -948,11 +1110,52 @@ export default function ProjectionsPage() {
                           )}
                         </TableCell>
                         <TableCell>
-                          <div className="flex items-center justify-between">
-                            <span className="text-rose-600 dark:text-rose-400">
-                              {formatCurrency(row.outbound, user?.currency)}
-                            </span>
-                          </div>
+                          <HoverCard>
+                            <HoverCardTrigger asChild>
+                              <div className="flex items-center justify-between">
+                                <span className="text-rose-600 dark:text-rose-400">
+                                  {formatCurrency(row.outbound, user?.currency)}
+                                </span>
+                              </div>
+                            </HoverCardTrigger>
+                            <HoverCardContent className="w-80">
+                              <div className="space-y-3">
+                                <div className="flex items-center justify-between">
+                                  <h4 className="text-sm font-semibold">Expense Details</h4>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-8 px-2"
+                                    onClick={() => openCategoryDialog(row, "outbound")}
+                                  >
+                                    <Plus className="mr-1 h-3 w-3" /> Add
+                                  </Button>
+                                </div>
+                                <div className="space-y-1">
+                                  <div className="flex justify-between text-sm">
+                                    <span className="text-muted-foreground">Base Expenses:</span>
+                                    <span>{formatCurrency(baseOutbound, user?.currency)}</span>
+                                  </div>
+                                  {row.outboundItems.length > 0 && (
+                                    <>
+                                      <div className="my-2">
+                                        <div className="text-xs font-medium text-muted-foreground mb-1">
+                                          Custom Items:
+                                        </div>
+                                        {renderItemList(row.outboundItems, user?.currency)}
+                                      </div>
+                                    </>
+                                  )}
+                                  <div className="pt-2 mt-2 border-t flex justify-between text-sm font-medium">
+                                    <span>Total Expenses:</span>
+                                    <span className="text-rose-600">
+                                      {formatCurrency(row.outbound, user?.currency)}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            </HoverCardContent>
+                          </HoverCard>
                           {row.outboundItems.length > 0 && (
                             <div className="mt-1 text-xs text-muted-foreground">
                               <span>+{row.outboundItems.length} custom items</span>
@@ -968,14 +1171,24 @@ export default function ProjectionsPage() {
                         </TableCell>
                         <TableCell className="font-medium">{formatCurrency(row.current, user?.currency)}</TableCell>
                         <TableCell>
-                          <div className="flex">
+                          <div className="flex space-x-1">
                             <Button
                               variant="ghost"
                               size="icon"
                               className="h-8 w-8"
                               onClick={() => openCategoryDialog(row, "inbound")}
+                              title="Add Income"
                             >
-                              <Edit className="h-4 w-4" />
+                              <Plus className="h-4 w-4 text-emerald-500" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => openCategoryDialog(row, "outbound")}
+                              title="Add Expense"
+                            >
+                              <Plus className="h-4 w-4 text-rose-500" />
                             </Button>
                           </div>
                         </TableCell>
@@ -991,7 +1204,7 @@ export default function ProjectionsPage() {
         <CardFooter className="flex flex-col sm:flex-row justify-between gap-4">
           <div className="flex items-center text-sm text-muted-foreground">
             <Info className="mr-1 h-4 w-4" />
-            <span className="text-xs sm:text-sm">Tap on a row or edit button to add custom items</span>
+            <span className="text-xs sm:text-sm">Hover over income/expenses to see details</span>
           </div>
           <Button variant="outline" className="gap-2 w-full sm:w-auto" onClick={handleReset}>
             <RefreshCw className="h-4 w-4" />
