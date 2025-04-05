@@ -2,7 +2,7 @@
   "name": "Finflow - Personal Finance Manager",
   "short_name": "Finflow",
   "description": "Track your finances, budgets, and financial goals with ease",
-  "start_url": "/",
+  "start_url": "/finc",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#7c3aed",

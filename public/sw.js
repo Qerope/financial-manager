@@ -1,5 +1,5 @@
 const CACHE_NAME = "finflow-cache-v1"
-const urlsToCache = ["/", "/dashboard", "/offline", "/manifest.json", "/icon-192x192.png", "/icon-512x512.png"]
+const urlsToCache = ["/finc/", "/finc/dashboard", "/finc/offline", "/finc/manifest.json", "/finc/icon-192x192.png", "/finc/icon-512x512.png"]
 
 // Install a service worker
 self.addEventListener("install", (event) => {
@@ -32,7 +32,7 @@ self.addEventListener("fetch", (event) => {
 
           caches.open(CACHE_NAME).then((cache) => {
             // Don't cache API requests
-            if (!event.request.url.includes("/api/")) {
+            if (!event.request.url.includes("/finc/api/")) {
               cache.put(event.request, responseToCache)
             }
           })
@@ -42,7 +42,7 @@ self.addEventListener("fetch", (event) => {
         .catch(() => {
           // If the network is unavailable, try to return the offline page
           if (event.request.url.includes("page")) {
-            return caches.match("/offline")
+            return caches.match("/finc/offline")
           }
         })
     }),

@@ -2,6 +2,7 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+  basePath: '/finc',
   reactStrictMode: true,
   swcMinify: true,
   images: {
