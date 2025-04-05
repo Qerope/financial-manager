@@ -37,6 +37,7 @@ import {
   Info,
   FileText,
   AlertCircle,
+  Upload,
 } from "lucide-react"
 import { getAverageMonthlyData, getCategoryAverages } from "@/lib/api"
 import { formatCurrency, cn } from "@/lib/utils"
@@ -127,8 +128,12 @@ export default function ProjectionsPage() {
     type: "inbound",
   })
 
-  // Export
+  // Export/Import
   const [isExporting, setIsExporting] = useState(false)
+  const [isImporting, setIsImporting] = useState(false)
+  const [showImportDialog, setShowImportDialog] = useState(false)
+  const [importData, setImportData] = useState("")
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const tableRef = useRef<HTMLDivElement>(null)
 
   // Fetch initial data
@@ -169,6 +174,9 @@ export default function ProjectionsPage() {
               projectionData: scenario.projectionData.map((month: any) => ({
                 ...month,
                 date: new Date(month.date),
+                // Ensure inboundItems and outboundItems are properly initialized
+                inboundItems: Array.isArray(month.inboundItems) ? month.inboundItems : [],
+                outboundItems: Array.isArray(month.outboundItems) ? month.outboundItems : [],
               })),
             }))
             setScenarios(processedScenarios)
@@ -383,6 +391,7 @@ export default function ProjectionsPage() {
       return
     }
 
+    // Make sure to include all custom items in the saved scenario
     const scenario: Scenario = {
       id: `scenario-${Date.now()}`,
       name: newScenario.name,
@@ -393,7 +402,7 @@ export default function ProjectionsPage() {
       startingNetWorth: currentNetWorth,
       startDate: new Date(startDate),
       months,
-      projectionData: [...projectionData],
+      projectionData: [...projectionData], // This includes all inboundItems and outboundItems
     }
 
     const updatedScenarios = [...scenarios, scenario]
@@ -421,7 +430,17 @@ export default function ProjectionsPage() {
     setCurrentNetWorth(scenario.startingNetWorth)
     setStartDate(new Date(scenario.startDate))
     setMonths(scenario.months)
-    setProjectionData(scenario.projectionData)
+
+    // Make sure to load all custom items
+    setProjectionData(
+      scenario.projectionData.map((month) => ({
+        ...month,
+        date: new Date(month.date),
+        inboundItems: Array.isArray(month.inboundItems) ? month.inboundItems : [],
+        outboundItems: Array.isArray(month.outboundItems) ? month.outboundItems : [],
+      })),
+    )
+
     setCurrentScenario(scenario)
 
     toast({
@@ -435,11 +454,27 @@ export default function ProjectionsPage() {
     setIsExporting(true)
 
     try {
-      // Create CSV content
-      let csvContent = "Month,Income,Expenses,Net,Projected Net Worth\n"
+      // Create CSV content with headers
+      let csvContent =
+        "Month,Base Income,Custom Income Items,Total Income,Base Expenses,Custom Expense Items,Total Expenses,Net,Projected Net Worth\n"
 
       projectionData.forEach((row) => {
-        csvContent += `"${row.month}",${row.inbound},${row.outbound},${row.net},${row.current}\n`
+        // Calculate base income (total minus custom items)
+        const baseIncome = baseInbound
+        const customIncomeTotal = row.inboundItems.reduce((sum, item) => sum + item.amount, 0)
+
+        // Calculate base expenses (total minus custom items)
+        const baseExpenses = baseOutbound
+        const customExpenseTotal = row.outboundItems.reduce((sum, item) => sum + item.amount, 0)
+
+        // Create custom items details
+        const customIncomeDetails =
+          row.inboundItems.length > 0 ? row.inboundItems.map((item) => `${item.name}: ${item.amount}`).join("; ") : ""
+
+        const customExpenseDetails =
+          row.outboundItems.length > 0 ? row.outboundItems.map((item) => `${item.name}: ${item.amount}`).join("; ") : ""
+
+        csvContent += `"${row.month}",${baseIncome},"${customIncomeDetails}",${row.inbound},${baseExpenses},"${customExpenseDetails}",${row.outbound},${row.net},${row.current}\n`
       })
 
       // Create download link
@@ -454,7 +489,7 @@ export default function ProjectionsPage() {
 
       toast({
         title: "Export successful",
-        description: "Your projection data has been exported to CSV",
+        description: "Your projection data has been exported to CSV with all custom items",
       })
     } catch (err) {
       console.error("Export failed:", err)
@@ -466,6 +501,141 @@ export default function ProjectionsPage() {
     } finally {
       setIsExporting(false)
     }
+  }
+
+  // Export scenario to JSON
+  const handleExportScenario = () => {
+    try {
+      // Create a JSON representation of the current scenario
+      const scenarioToExport = {
+        name: currentScenario?.name || "My Scenario",
+        description: currentScenario?.description || "",
+        baseInbound,
+        baseOutbound,
+        startingNetWorth: currentNetWorth,
+        startDate: startDate.toISOString(),
+        months,
+        projectionData: projectionData.map((month) => ({
+          ...month,
+          date: month.date.toISOString(),
+        })),
+      }
+
+      // Convert to JSON string
+      const jsonString = JSON.stringify(scenarioToExport, null, 2)
+
+      // Create download link
+      const blob = new Blob([jsonString], { type: "application/json" })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement("a")
+      link.setAttribute("href", url)
+      link.setAttribute("download", `financial-scenario-${new Date().toISOString().split("T")[0]}.json`)
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+
+      toast({
+        title: "Scenario exported",
+        description: "Your scenario has been exported as JSON",
+      })
+    } catch (err) {
+      console.error("Scenario export failed:", err)
+      toast({
+        title: "Export failed",
+        description: "There was an error exporting your scenario",
+        variant: "destructive",
+      })
+    }
+  }
+
+  // Import scenario from JSON
+  const handleImportScenario = () => {
+    setShowImportDialog(true)
+  }
+
+  // Process imported scenario data
+  const processImportedScenario = () => {
+    setIsImporting(true)
+
+    try {
+      // Parse the JSON data
+      const importedScenario = JSON.parse(importData)
+
+      // Validate the imported data
+      if (!importedScenario.baseInbound || !importedScenario.baseOutbound || !importedScenario.projectionData) {
+        throw new Error("Invalid scenario data format")
+      }
+
+      // Set the imported values
+      setBaseInbound(importedScenario.baseInbound)
+      setBaseOutbound(importedScenario.baseOutbound)
+      setCurrentNetWorth(importedScenario.startingNetWorth || 0)
+      setStartDate(new Date(importedScenario.startDate))
+      setMonths(importedScenario.months || 12)
+
+      // Process projection data
+      const processedData = importedScenario.projectionData.map((month: any) => ({
+        ...month,
+        date: new Date(month.date),
+        inboundItems: Array.isArray(month.inboundItems) ? month.inboundItems : [],
+        outboundItems: Array.isArray(month.outboundItems) ? month.outboundItems : [],
+      }))
+
+      setProjectionData(processedData)
+
+      // Create a new scenario
+      const newImportedScenario: Scenario = {
+        id: `scenario-${Date.now()}`,
+        name: importedScenario.name || "Imported Scenario",
+        description: importedScenario.description || "Imported from JSON",
+        createdAt: new Date(),
+        baseInbound: importedScenario.baseInbound,
+        baseOutbound: importedScenario.baseOutbound,
+        startingNetWorth: importedScenario.startingNetWorth || 0,
+        startDate: new Date(importedScenario.startDate),
+        months: importedScenario.months || 12,
+        projectionData: processedData,
+      }
+
+      // Add to scenarios list
+      const updatedScenarios = [...scenarios, newImportedScenario]
+      setScenarios(updatedScenarios)
+      setCurrentScenario(newImportedScenario)
+
+      // Save to localStorage
+      localStorage.setItem("financialScenarios", JSON.stringify(updatedScenarios))
+
+      setShowImportDialog(false)
+      setImportData("")
+
+      toast({
+        title: "Import successful",
+        description: `Scenario "${newImportedScenario.name}" has been imported`,
+      })
+    } catch (err) {
+      console.error("Import failed:", err)
+      toast({
+        title: "Import failed",
+        description: "Invalid scenario data format. Please check your JSON file.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsImporting(false)
+    }
+  }
+
+  // Handle file upload
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      if (event.target?.result) {
+        setImportData(event.target.result as string)
+      }
+    }
+    reader.readAsText(file)
   }
 
   // Reset to defaults
@@ -601,13 +771,15 @@ export default function ProjectionsPage() {
           )}
           <Button variant="outline" className="gap-2" onClick={() => setShowSaveDialog(true)}>
             <Save className="h-4 w-4" />
-            <span className="hidden sm:inline">Save Scenario</span>
-            <span className="sm:hidden">Save</span>
+            <span className="hidden sm:inline">Save</span>
           </Button>
           <Button variant="outline" className="gap-2" onClick={handleExport} disabled={isExporting}>
             <Download className="h-4 w-4" />
-            <span className="hidden sm:inline">{isExporting ? "Exporting..." : "Export CSV"}</span>
-            <span className="sm:hidden">Export</span>
+            <span className="hidden sm:inline">Export</span>
+          </Button>
+          <Button variant="outline" className="gap-2" onClick={handleImportScenario}>
+            <Upload className="h-4 w-4" />
+            <span className="hidden sm:inline">Import</span>
           </Button>
         </div>
       </div>
@@ -1415,6 +1587,52 @@ export default function ProjectionsPage() {
               Cancel
             </Button>
             <Button onClick={handleSaveScenario}>Save Scenario</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog for importing scenario */}
+      <Dialog open={showImportDialog} onOpenChange={setShowImportDialog}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Import Scenario</DialogTitle>
+            <DialogDescription>Import a previously exported scenario file</DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="import-file">Upload JSON File</Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  id="import-file"
+                  type="file"
+                  accept=".json"
+                  ref={fileInputRef}
+                  onChange={handleFileUpload}
+                  className="flex-1"
+                />
+              </div>
+            </div>
+
+            {importData && (
+              <div className="grid gap-2">
+                <Label>Preview</Label>
+                <div className="rounded-md bg-muted p-3 text-sm">
+                  <ScrollArea className="h-[100px]">
+                    <pre className="text-xs">{importData.substring(0, 200)}...</pre>
+                  </ScrollArea>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowImportDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={processImportedScenario} disabled={!importData || isImporting}>
+              {isImporting ? "Importing..." : "Import"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

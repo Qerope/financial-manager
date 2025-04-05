@@ -18,12 +18,14 @@ export async function fetchWithAuth(endpoint: string, options: RequestInit = {})
     headers,
   })
 
-  const data = await response.json()
-
+  // Handle 404 and other errors more gracefully
   if (!response.ok) {
-    throw new Error(data.message || "API request failed")
+    const errorData = await response.json().catch(() => ({ message: "An unknown error occurred" }))
+    console.error(`API Error (${response.status}):`, errorData)
+    throw new Error(errorData.message || `API request failed with status ${response.status}`)
   }
 
+  const data = await response.json()
   return data
 }
 
