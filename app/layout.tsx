@@ -11,7 +11,7 @@ const inter = Inter({ subsets: ["latin"] })
 export const metadata: Metadata = {
   title: "Finflow - Personal Finance Manager",
   description: "Track your finances, budgets, and financial goals with ease",
-  manifest: "/manifest.json",
+  manifest: "/finc/manifest.json",
   themeColor: "#7c3aed",
   appleWebApp: {
     capable: true,
