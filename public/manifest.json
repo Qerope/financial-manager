@@ -9,23 +9,23 @@
   "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "/icon-192x192.png",
+      "src": "/finc/icon-192x192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/icon-256x256.png",
+      "src": "/finc/icon-256x256.png",
       "sizes": "256x256",
       "type": "image/png"
     },
     {
-      "src": "/icon-384x384.png",
+      "src": "/finc/icon-384x384.png",
       "sizes": "384x384",
       "type": "image/png"
     },
     {
-      "src": "/icon-512x512.png",
+      "src": "/finc/icon-512x512.png",
       "sizes": "512x512",
       "type": "image/png"
     }
@@ -36,21 +36,21 @@
       "short_name": "Dashboard",
       "description": "View your financial overview",
       "url": "/dashboard",
-      "icons": [{ "src": "/icon-192x192.png", "sizes": "192x192" }]
+      "icons": [{ "src": "/finc/icon-192x192.png", "sizes": "192x192" }]
     },
     {
       "name": "Add Transaction",
       "short_name": "Add",
       "description": "Add a new transaction",
       "url": "/transactions/new",
-      "icons": [{ "src": "/icon-192x192.png", "sizes": "192x192" }]
+      "icons": [{ "src": "/finc/icon-192x192.png", "sizes": "192x192" }]
     },
     {
       "name": "Projections",
       "short_name": "Projections",
       "description": "View financial projections",
       "url": "/projections",
-      "icons": [{ "src": "/icon-192x192.png", "sizes": "192x192" }]
+      "icons": [{ "src": "/finc/icon-192x192.png", "sizes": "192x192" }]
     }
   ]
 }
