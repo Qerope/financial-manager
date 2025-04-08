@@ -111,7 +111,15 @@ export const exchangePublicTokenController = async (req, res, next) => {
         availableProducts: item.available_products,
         billedProducts: item.billed_products,
         consentExpirationTime: item.consent_expiration_time ? new Date(item.consent_expiration_time) : null,
-        accounts: accounts.map((account) => ({
+        accounts: accounts: Array.isArray(accounts) ? accounts.map((account) => ({
+          accountId: account.id,
+          mask: account.mask,
+          name: account.name,
+          officialName: '',
+          type: account.type,
+          subtype: account.subtype,
+          linkedAccountId: null, // Will be linked later
+        })) : JSON.parse(accounts).map((account) => ({
           accountId: account.id,
           mask: account.mask,
           name: account.name,
