@@ -98,7 +98,7 @@ export const exchangePublicTokenController = async (req, res, next) => {
             type: account.type,
             subtype: account.subtype,
             linkedAccountId: null, // Will be linked later
-          }
+          }))
         }
       )
       const newPlaidItem = new PlaidItem({
