@@ -84,10 +84,10 @@ export const exchangePublicTokenController = async (req, res, next) => {
         accountId: account.id,
         mask: account.mask,
         name: account.name,
-        officialName: account.official_name,
+        officialName: null,
         type: account.type,
         subtype: account.subtype,
-        linkedAccountId: null, // Will be linked later
+        linkedAccountId: null,
       })))
       const newPlaidItem = new PlaidItem({
         userId,
