@@ -56,7 +56,7 @@ export default function PlaidLink({
           public_token: publicToken,
           institution_id: metadata.institution.institution_id,
           institution_name: metadata.institution.name,
-          accounts: metadata.accounts,
+          accounts: JSON.parse(metadata.accounts),
         })
 
         toast({
