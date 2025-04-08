@@ -63,7 +63,7 @@ export const exchangePublicTokenController = async (req, res, next) => {
       // Update accounts
       const accountsResponse = await getAccounts(accessToken)
       existingItem.accounts = accountsResponse.accounts.map((account) => ({
-        accountId: account.account_id,
+        accountId: account.id,
         mask: account.mask,
         name: account.name,
         officialName: account.official_name,
