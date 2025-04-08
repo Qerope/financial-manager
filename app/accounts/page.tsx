@@ -2,353 +2,178 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
-import { useAuth } from "@/context/auth-context"
+import { useRouter } from "next/navigation"
+import { Plus, CreditCard, Pencil, Trash2, Link2 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import {
-  Plus,
-  CreditCard,
-  Wallet,
-  Landmark,
-  PiggyBank,
-  Banknote,
-  Pencil,
-  Trash2,
-  Loader2,
-  TrendingUp,
-  ArrowRight,
-  Building,
-} from "lucide-react"
-import { formatCurrency } from "@/lib/utils"
+import { Badge } from "@/components/ui/badge"
 import { getAccounts, deleteAccount } from "@/lib/api"
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
-import { useToast } from "@/components/ui/use-toast"
-import PlaidLink from "@/components/plaid-link"
+import { useToast } from "@/hooks/use-toast"
+import { formatCurrency } from "@/lib/utils"
+import { PlaidLink } from "@/components/plaid-link"
 
 export default function AccountsPage() {
-  const { user } = useAuth()
-  const { toast } = useToast()
   const [accounts, setAccounts] = useState([])
   const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState("")
+  const router = useRouter()
+  const { toast } = useToast()
 
   useEffect(() => {
-    fetchAccounts()
-  }, [])
-
-  const fetchAccounts = async () => {
-    try {
+    const fetchAccounts = async () => {
       setIsLoading(true)
-      const data = await getAccounts()
-      setAccounts(data.accounts)
-    } catch (err) {
-      setError("Failed to load accounts")
-      console.error(err)
-    } finally {
-      setIsLoading(false)
+      try {
+        const response = await getAccounts()
+        if (response.success) {
+          setAccounts(response.accounts)
+        } else {
+          toast({
+            title: "Error",
+            description: "Failed to load accounts",
+            variant: "destructive",
+          })
+        }
+      } catch (error) {
+        console.error("Error fetching accounts:", error)
+        toast({
+          title: "Error",
+          description: "Failed to load accounts",
+          variant: "destructive",
+        })
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchAccounts()
+  }, [toast])
+
+  const handleDelete = async (id) => {
+    if (window.confirm("Are you sure you want to delete this account?")) {
+      try {
+        const response = await deleteAccount(id)
+        if (response.success) {
+          setAccounts(accounts.filter((account) => account._id !== id))
+          toast({
+            title: "Success",
+            description: "Account deleted successfully",
+          })
+        } else {
+          toast({
+            title: "Error",
+            description: response.message || "Failed to delete account",
+            variant: "destructive",
+          })
+        }
+      } catch (error) {
+        console.error("Error deleting account:", error)
+        toast({
+          title: "Error",
+          description: "Failed to delete account",
+          variant: "destructive",
+        })
+      }
     }
   }
 
-  const handleDeleteAccount = async (id) => {
-    try {
-      await deleteAccount(id)
-      setAccounts(accounts.filter((account) => account._id !== id))
-      toast({
-        title: "Account deleted",
-        description: "The account has been deleted successfully.",
-      })
-    } catch (err) {
-      toast({
-        title: "Error",
-        description: "Failed to delete account. It may have associated transactions.",
-        variant: "destructive",
-      })
-    }
-  }
-
-  const getAccountIcon = (type) => {
-    switch (type) {
+  const getAccountTypeColor = (type) => {
+    switch (type.toLowerCase()) {
       case "checking":
-        return <Wallet className="h-5 w-5" />
+        return "bg-blue-100 text-blue-800"
       case "savings":
-        return <PiggyBank className="h-5 w-5" />
-      case "credit":
-        return <CreditCard className="h-5 w-5" />
+        return "bg-green-100 text-green-800"
+      case "credit card":
+        return "bg-purple-100 text-purple-800"
       case "investment":
-        return <TrendingUp className="h-5 w-5" />
+        return "bg-amber-100 text-amber-800"
       case "loan":
-        return <Landmark className="h-5 w-5" />
-      case "cash":
-        return <Banknote className="h-5 w-5" />
+        return "bg-red-100 text-red-800"
       default:
-        return <CreditCard className="h-5 w-5" />
+        return "bg-gray-100 text-gray-800"
     }
-  }
-
-  // Calculate total balance across all accounts
-  const totalBalance = accounts.reduce((sum, account) => sum + account.balance, 0)
-
-  // Group accounts by type
-  const accountsByType = accounts.reduce((acc, account) => {
-    if (!acc[account.type]) {
-      acc[account.type] = []
-    }
-    acc[account.type].push(account)
-    return acc
-  }, {})
-
-  if (isLoading) {
-    return (
-      <div className="flex h-full items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="mx-auto h-12 w-12 animate-spin text-primary" />
-          <p className="mt-4 text-lg font-medium text-muted-foreground">Loading your accounts...</p>
-        </div>
-      </div>
-    )
   }
 
   return (
-    <div className="space-y-8 animate-fade-in">
-      <div className="flex flex-col justify-between space-y-2 md:flex-row md:items-center md:space-y-0">
+    <div className="container mx-auto py-6 space-y-6">
+      <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Accounts</h1>
           <p className="text-muted-foreground">Manage your financial accounts</p>
         </div>
-        <div className="flex flex-col space-y-2 sm:flex-row sm:space-x-2 sm:space-y-0">
-          <Button asChild variant="outline" className="shadow-sm">
-            <Link href="/accounts/connect">
-              <Building className="mr-2 h-4 w-4" />
-              Connect Bank
-            </Link>
-          </Button>
-          <Button asChild variant="gradient" className="shadow-sm">
-            <Link href="/accounts/new">
-              <Plus className="mr-2 h-4 w-4" />
+        <div className="flex gap-2">
+          <Button asChild>
+            <Link href="/accounts/new" className="flex items-center gap-2">
+              <Plus className="h-4 w-4" />
               Add Account
             </Link>
           </Button>
+          <PlaidLink
+            buttonText="Connect Bank"
+            variant="outline"
+            className="flex items-center gap-2"
+            onSuccess={() => router.push("/accounts/connect")}
+          >
+            <Link2 className="h-4 w-4" />
+            Connect Bank
+          </PlaidLink>
         </div>
       </div>
 
-      {error && <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">{error}</div>}
-
-      <Card className="hover-card gradient-card">
-        <CardHeader>
-          <CardTitle className="text-2xl">Total Balance</CardTitle>
-          <CardDescription>Your combined balance across all accounts</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="text-4xl font-bold gradient-text">{formatCurrency(totalBalance, user?.currency)}</div>
-          <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
-            {Object.entries(accountsByType).map(([type, accounts]) => {
-              const typeTotal = accounts.reduce((sum, account) => sum + account.balance, 0)
-              const percentage = Math.round((typeTotal / totalBalance) * 100)
-
-              return (
-                <div key={type} className="rounded-lg bg-white p-3 shadow-sm dark:bg-gray-800">
-                  <div className="flex items-center space-x-2">
-                    <div className="rounded-full bg-violet-100 p-1.5 text-violet-600 dark:bg-violet-900/50 dark:text-violet-300">
-                      {getAccountIcon(type)}
-                    </div>
-                    <span className="text-sm font-medium capitalize">{type}</span>
-                  </div>
-                  <div className="mt-2 text-lg font-semibold">{formatCurrency(typeTotal, user?.currency)}</div>
-                  <div className="mt-1 text-xs text-muted-foreground">{percentage}% of total</div>
+      {isLoading ? (
+        <div>Loading accounts...</div>
+      ) : accounts.length === 0 ? (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-10">
+            <CreditCard className="h-10 w-10 text-muted-foreground mb-4" />
+            <p className="text-center text-muted-foreground mb-4">
+              You don't have any accounts yet. Add an account to get started.
+            </p>
+            <div className="flex gap-4">
+              <Button asChild>
+                <Link href="/accounts/new">Add Account</Link>
+              </Button>
+              <PlaidLink
+                buttonText="Connect Bank"
+                variant="outline"
+                onSuccess={() => router.push("/accounts/connect")}
+              />
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {accounts.map((account) => (
+            <Card key={account._id}>
+              <CardHeader className="pb-2">
+                <div className="flex justify-between items-start">
+                  <CardTitle>{account.name}</CardTitle>
+                  <Badge className={getAccountTypeColor(account.type)}>{account.type}</Badge>
                 </div>
-              )
-            })}
-          </div>
-        </CardContent>
-      </Card>
-
-      <Tabs defaultValue="all" className="space-y-6">
-        <TabsList className="inline-flex h-10 items-center justify-center rounded-md bg-muted p-1 text-muted-foreground">
-          <TabsTrigger
-            value="all"
-            className="rounded-sm px-3 py-1.5 text-sm font-medium transition-all hover:text-foreground data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm"
-          >
-            All Accounts
-          </TabsTrigger>
-          {Object.keys(accountsByType).map((type) => (
-            <TabsTrigger
-              key={type}
-              value={type}
-              className="rounded-sm px-3 py-1.5 text-sm font-medium capitalize transition-all hover:text-foreground data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm"
-            >
-              {type}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-
-        <TabsContent value="all" className="space-y-6 animate-fade-in">
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {accounts.map((account, index) => (
-              <Card key={account._id} className={`hover-card animate-fade-in animate-delay-${index * 100}`}>
-                <CardHeader className="pb-2">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      <div className="rounded-full bg-violet-100 p-2 text-violet-600 dark:bg-violet-900/50 dark:text-violet-300">
-                        {getAccountIcon(account.type)}
-                      </div>
-                      <CardTitle className="text-lg font-medium">{account.name}</CardTitle>
-                    </div>
-                  </div>
-                  <CardDescription className="mt-1 capitalize">{account.type}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{formatCurrency(account.balance, account.currency)}</div>
-                  <p className="text-xs text-muted-foreground">{account.institution && account.institution}</p>
-                </CardContent>
-                <CardFooter className="flex justify-between">
-                  <Button asChild variant="outline" size="sm" className="gap-1">
-                    <Link href={`/accounts/${account._id}`}>
-                      View Details
-                      <ArrowRight className="ml-1 h-3 w-3" />
-                    </Link>
-                  </Button>
-                  <div className="flex space-x-2">
-                    <Button asChild variant="ghost" size="icon" className="h-8 w-8 rounded-full">
-                      <Link href={`/accounts/${account._id}/edit`}>
-                        <Pencil className="h-4 w-4" />
-                        <span className="sr-only">Edit</span>
-                      </Link>
-                    </Button>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 rounded-full text-rose-500 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/50"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                          <span className="sr-only">Delete</span>
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Delete Account</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Are you sure you want to delete this account? This action cannot be undone. All transactions
-                            associated with this account will also be deleted.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={() => handleDeleteAccount(account._id)}
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                          >
-                            Delete
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </div>
-                </CardFooter>
-              </Card>
-            ))}
-            <Card className="flex flex-col items-center justify-center p-6 hover-card animate-fade-in animate-delay-300">
-              <div className="mb-4 rounded-full bg-violet-100 p-4 text-violet-600 dark:bg-violet-900/50 dark:text-violet-300">
-                <CreditCard className="h-8 w-8" />
-              </div>
-              <h3 className="mb-1 text-lg font-medium">Add Account</h3>
-              <p className="mb-4 text-center text-sm text-muted-foreground">Add a new bank account or credit card</p>
-              <div className="flex flex-col space-y-2 w-full">
-                <PlaidLink buttonText="Connect Bank Account" className="w-full" />
-                <Button asChild variant="outline" className="w-full">
-                  <Link href="/accounts/new">
-                    <Plus className="mr-2 h-4 w-4" />
-                    Add Manual Account
+                <CardDescription>{account.institution || "No institution"}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{formatCurrency(account.balance, account.currency)}</div>
+              </CardContent>
+              <CardFooter className="flex justify-end gap-2">
+                <Button variant="ghost" size="sm" asChild>
+                  <Link href={`/accounts/${account._id}/edit`} className="flex items-center gap-1">
+                    <Pencil className="h-4 w-4" />
+                    Edit
                   </Link>
                 </Button>
-              </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="flex items-center gap-1 text-destructive"
+                  onClick={() => handleDelete(account._id)}
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Delete
+                </Button>
+              </CardFooter>
             </Card>
-          </div>
-        </TabsContent>
-
-        {Object.entries(accountsByType).map(([type, typeAccounts]) => (
-          <TabsContent key={type} value={type} className="space-y-6 animate-fade-in">
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {typeAccounts.map((account, index) => (
-                <Card key={account._id} className={`hover-card animate-fade-in animate-delay-${index * 100}`}>
-                  <CardHeader className="pb-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        <div className="rounded-full bg-violet-100 p-2 text-violet-600 dark:bg-violet-900/50 dark:text-violet-300">
-                          {getAccountIcon(account.type)}
-                        </div>
-                        <CardTitle className="text-lg font-medium">{account.name}</CardTitle>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{formatCurrency(account.balance, account.currency)}</div>
-                    <p className="text-xs text-muted-foreground">{account.institution && account.institution}</p>
-                  </CardContent>
-                  <CardFooter className="flex justify-between">
-                    <Button asChild variant="outline" size="sm" className="gap-1">
-                      <Link href={`/accounts/${account._id}`}>
-                        View Details
-                        <ArrowRight className="ml-1 h-3 w-3" />
-                      </Link>
-                    </Button>
-                    <div className="flex space-x-2">
-                      <Button asChild variant="ghost" size="icon" className="h-8 w-8 rounded-full">
-                        <Link href={`/accounts/${account._id}/edit`}>
-                          <Pencil className="h-4 w-4" />
-                          <span className="sr-only">Edit</span>
-                        </Link>
-                      </Button>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 rounded-full text-rose-500 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/50"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                            <span className="sr-only">Delete</span>
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Delete Account</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Are you sure you want to delete this account? This action cannot be undone. All
-                              transactions associated with this account will also be deleted.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction
-                              onClick={() => handleDeleteAccount(account._id)}
-                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                            >
-                              Delete
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </div>
-                  </CardFooter>
-                </Card>
-              ))}
-            </div>
-          </TabsContent>
-        ))}
-      </Tabs>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

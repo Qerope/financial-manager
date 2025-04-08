@@ -1,11 +1,7 @@
 import express from "express"
 import mongoose from "mongoose"
-import cors from "cors"
 import dotenv from "dotenv"
-import helmet from "helmet"
-import morgan from "morgan"
-
-// Route imports
+import cors from "cors"
 import authRoutes from "./routes/auth.js"
 import userRoutes from "./routes/users.js"
 import accountRoutes from "./routes/accounts.js"
@@ -16,17 +12,18 @@ import goalRoutes from "./routes/goals.js"
 import reportRoutes from "./routes/reports.js"
 import recurringRoutes from "./routes/recurring.js"
 import dashboardRoutes from "./routes/dashboard.js"
-import projectionRoutes from "./routes/projections.js"
+import projectionsRoutes from "./routes/projections.js"
 import plaidRoutes from "./routes/plaid.js"
 
-// Middleware
 dotenv.config()
+
 const app = express()
-app.use(express.json())
-app.use(helmet())
-app.use(helmet.crossOriginResourcePolicy({ policy: "cross-origin" }))
-app.use(morgan("common"))
+const PORT = process.env.PORT || 5000
+const MONGODB_URI = process.env.MONGODB_URI || "mongodb://localhost:27017/finance-app"
+
+// Middleware
 app.use(cors())
+app.use(express.json())
 
 // Routes
 app.use("/finc/api/auth", authRoutes)
@@ -39,25 +36,32 @@ app.use("/finc/api/goals", goalRoutes)
 app.use("/finc/api/reports", reportRoutes)
 app.use("/finc/api/recurring", recurringRoutes)
 app.use("/finc/api/dashboard", dashboardRoutes)
-app.use("/finc/api/projections", projectionRoutes)
+app.use("/finc/api/projections", projectionsRoutes)
 app.use("/finc/api/plaid", plaidRoutes)
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-  const statusCode = err.statusCode || 500
-  const message = err.message || "Internal Server Error"
-  return res.status(statusCode).json({
+  const errorStatus = err.status || 500
+  const errorMessage = err.message || "Something went wrong!"
+  return res.status(errorStatus).json({
     success: false,
-    statusCode,
-    message,
+    statusCode: errorStatus,
+    message: errorMessage,
+    stack: process.env.NODE_ENV === "development" ? err.stack : {},
   })
 })
 
-// MongoDB Connection
-const PORT = process.env.PORT || 5000
+// Connect to MongoDB
 mongoose
-  .connect(process.env.MONGO_URI)
+  .connect(MONGODB_URI)
   .then(() => {
-    app.listen(PORT, () => console.log(`Server running on port: ${PORT}`))
+    console.log("Connected to MongoDB")
+    app.listen(PORT, () => {
+      console.log(`Server is running on port ${PORT}`)
+    })
   })
-  .catch((error) => console.log(`${error} did not connect`))
+  .catch((err) => {
+    console.error("Error connecting to MongoDB:", err)
+  })
+
+export default app

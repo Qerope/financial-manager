@@ -2,492 +2,443 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import Link from "next/link"
+import { Plus, Link2, Unlink, RefreshCw, Trash2 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { PlaidLink } from "@/components/plaid-link"
 import {
-  Loader2,
-  RefreshCw,
-  Trash2,
-  Building,
-  CreditCard,
-  Wallet,
-  PiggyBank,
-  LinkIcon,
-  AlertTriangle,
-  CheckCircle,
-  Clock,
-  ArrowRight,
-  Plus,
-} from "lucide-react"
-import { getPlaidItems, deletePlaidItem, syncPlaidTransactions, getAccounts } from "@/lib/api"
-import { useToast } from "@/components/ui/use-toast"
-import PlaidLink from "@/components/plaid-link"
+  getPlaidItems,
+  getAccounts,
+  deletePlaidItem,
+  linkPlaidAccount,
+  unlinkPlaidAccount,
+  syncTransactions,
+} from "@/lib/api"
+import { useToast } from "@/hooks/use-toast"
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { formatDistanceToNow } from "date-fns"
-import { linkPlaidAccount, unlinkPlaidAccount } from "@/lib/api"
+import { Skeleton } from "@/components/ui/skeleton"
 
 export default function ConnectAccountsPage() {
-  const router = useRouter()
-  const { toast } = useToast()
   const [plaidItems, setPlaidItems] = useState([])
   const [accounts, setAccounts] = useState([])
   const [isLoading, setIsLoading] = useState(true)
-  const [isSyncing, setSyncing] = useState({})
-  const [error, setError] = useState("")
-
-  useEffect(() => {
-    fetchData()
-  }, [])
+  const [isLinking, setIsLinking] = useState(false)
+  const [isSyncing, setIsSyncing] = useState(false)
+  const [selectedPlaidItem, setSelectedPlaidItem] = useState(null)
+  const [selectedPlaidAccount, setSelectedPlaidAccount] = useState(null)
+  const [selectedAccount, setSelectedAccount] = useState(null)
+  const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const { toast } = useToast()
+  const router = useRouter()
 
   const fetchData = async () => {
+    setIsLoading(true)
     try {
-      setIsLoading(true)
-      const [itemsData, accountsData] = await Promise.all([getPlaidItems(), getAccounts()])
-      setPlaidItems(itemsData.items)
-      setAccounts(accountsData.accounts)
-    } catch (err) {
-      setError("Failed to load connected accounts")
-      console.error(err)
+      const [itemsResponse, accountsResponse] = await Promise.all([getPlaidItems(), getAccounts()])
+
+      if (itemsResponse.success) {
+        setPlaidItems(itemsResponse.items)
+      }
+
+      if (accountsResponse.success) {
+        setAccounts(accountsResponse.accounts)
+      }
+    } catch (error) {
+      console.error("Error fetching data:", error)
+      toast({
+        title: "Error",
+        description: "Failed to load data",
+        variant: "destructive",
+      })
     } finally {
       setIsLoading(false)
     }
   }
 
+  useEffect(() => {
+    fetchData()
+  }, [])
+
   const handleDeleteItem = async (itemId) => {
-    try {
-      await deletePlaidItem(itemId)
-      setPlaidItems(plaidItems.filter((item) => item._id !== itemId))
-      toast({
-        title: "Connection removed",
-        description: "The bank connection has been removed successfully.",
-      })
-    } catch (err) {
-      toast({
-        title: "Error",
-        description: "Failed to remove bank connection.",
-        variant: "destructive",
-      })
+    if (window.confirm("Are you sure you want to disconnect this bank?")) {
+      try {
+        const response = await deletePlaidItem(itemId)
+        if (response.success) {
+          toast({
+            title: "Success",
+            description: "Bank disconnected successfully",
+          })
+          fetchData()
+        } else {
+          toast({
+            title: "Error",
+            description: response.message || "Failed to disconnect bank",
+            variant: "destructive",
+          })
+        }
+      } catch (error) {
+        console.error("Error deleting Plaid item:", error)
+        toast({
+          title: "Error",
+          description: "Failed to disconnect bank",
+          variant: "destructive",
+        })
+      }
     }
   }
 
   const handleSyncTransactions = async (itemId) => {
+    setIsSyncing(true)
     try {
-      setSyncing((prev) => ({ ...prev, [itemId]: true }))
-      await syncPlaidTransactions(itemId)
-
-      // Refresh the item data
-      const itemsData = await getPlaidItems()
-      setPlaidItems(itemsData.items)
-
+      const response = await syncTransactions(itemId)
+      if (response.success) {
+        toast({
+          title: "Success",
+          description: "Transactions synced successfully",
+        })
+      } else {
+        toast({
+          title: "Error",
+          description: response.message || "Failed to sync transactions",
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      console.error("Error syncing transactions:", error)
       toast({
-        title: "Sync complete",
-        description: "Transactions have been synchronized successfully.",
-      })
-    } catch (err) {
-      toast({
-        title: "Sync failed",
-        description: "Failed to synchronize transactions.",
+        title: "Error",
+        description: "Failed to sync transactions",
         variant: "destructive",
       })
     } finally {
-      setSyncing((prev) => ({ ...prev, [itemId]: false }))
+      setIsSyncing(false)
     }
   }
 
-  const handleLinkAccount = async (plaidItemId, plaidAccountId, accountId) => {
-    try {
-      await linkPlaidAccount({
-        plaidItemId,
-        plaidAccountId,
-        accountId,
-      })
-
-      // Refresh the item data
-      const itemsData = await getPlaidItems()
-      setPlaidItems(itemsData.items)
-
-      toast({
-        title: "Account linked",
-        description: "The bank account has been linked successfully.",
-      })
-    } catch (err) {
+  const handleLinkAccount = async () => {
+    if (!selectedPlaidItem || !selectedPlaidAccount || !selectedAccount) {
       toast({
         title: "Error",
-        description: "Failed to link bank account.",
+        description: "Please select all required fields",
         variant: "destructive",
       })
+      return
+    }
+
+    setIsLinking(true)
+    try {
+      const response = await linkPlaidAccount(selectedPlaidItem, selectedPlaidAccount, selectedAccount)
+      if (response.success) {
+        toast({
+          title: "Success",
+          description: "Account linked successfully",
+        })
+        setIsDialogOpen(false)
+        fetchData()
+      } else {
+        toast({
+          title: "Error",
+          description: response.message || "Failed to link account",
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      console.error("Error linking account:", error)
+      toast({
+        title: "Error",
+        description: "Failed to link account",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLinking(false)
     }
   }
 
   const handleUnlinkAccount = async (plaidItemId, plaidAccountId) => {
-    try {
-      await unlinkPlaidAccount({
-        plaidItemId,
-        plaidAccountId,
-      })
-
-      // Refresh the item data
-      const itemsData = await getPlaidItems()
-      setPlaidItems(itemsData.items)
-
-      toast({
-        title: "Account unlinked",
-        description: "The bank account has been unlinked successfully.",
-      })
-    } catch (err) {
-      toast({
-        title: "Error",
-        description: "Failed to unlink bank account.",
-        variant: "destructive",
-      })
+    if (window.confirm("Are you sure you want to unlink this account?")) {
+      try {
+        const response = await unlinkPlaidAccount(plaidItemId, plaidAccountId)
+        if (response.success) {
+          toast({
+            title: "Success",
+            description: "Account unlinked successfully",
+          })
+          fetchData()
+        } else {
+          toast({
+            title: "Error",
+            description: response.message || "Failed to unlink account",
+            variant: "destructive",
+          })
+        }
+      } catch (error) {
+        console.error("Error unlinking account:", error)
+        toast({
+          title: "Error",
+          description: "Failed to unlink account",
+          variant: "destructive",
+        })
+      }
     }
   }
 
-  const getStatusBadge = (status) => {
-    switch (status) {
-      case "good":
-        return (
-          <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-            <CheckCircle className="mr-1 h-3 w-3" /> Connected
-          </Badge>
-        )
-      case "error":
-        return (
-          <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
-            <AlertTriangle className="mr-1 h-3 w-3" /> Error
-          </Badge>
-        )
-      case "pending":
-        return (
-          <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">
-            <Clock className="mr-1 h-3 w-3" /> Pending
-          </Badge>
-        )
-      default:
-        return (
-          <Badge variant="outline" className="bg-gray-50 text-gray-700 border-gray-200">
-            Unknown
-          </Badge>
-        )
+  const getAccountTypeLabel = (type, subtype) => {
+    if (subtype) {
+      return `${type} (${subtype})`
     }
+    return type
   }
 
-  const getAccountIcon = (type) => {
-    switch (type?.toLowerCase()) {
-      case "depository":
-      case "checking":
-        return <Wallet className="h-4 w-4" />
-      case "savings":
-        return <PiggyBank className="h-4 w-4" />
-      case "credit":
-        return <CreditCard className="h-4 w-4" />
-      default:
-        return <CreditCard className="h-4 w-4" />
-    }
-  }
+  const getLinkedAccountName = (plaidAccount) => {
+    if (!plaidAccount.linkedAccountId) return "Not linked"
 
-  if (isLoading) {
-    return (
-      <div className="flex h-full items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="mx-auto h-12 w-12 animate-spin text-primary" />
-          <p className="mt-4 text-lg font-medium text-muted-foreground">Loading your connected accounts...</p>
-        </div>
-      </div>
-    )
+    const linkedAccount = accounts.find((acc) => acc._id === plaidAccount.linkedAccountId)
+    return linkedAccount ? linkedAccount.name : "Unknown account"
   }
 
   return (
-    <div className="space-y-8 animate-fade-in">
-      <div className="flex flex-col justify-between space-y-2 md:flex-row md:items-center md:space-y-0">
+    <div className="container mx-auto py-6 space-y-6">
+      <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Connected Accounts</h1>
-          <p className="text-muted-foreground">Manage your bank connections and account links</p>
+          <h1 className="text-3xl font-bold tracking-tight">Connected Banks</h1>
+          <p className="text-muted-foreground">Connect your bank accounts to automatically import transactions</p>
         </div>
-        <div className="flex space-x-2">
-          <Button asChild variant="outline">
-            <Link href="/accounts">View All Accounts</Link>
-          </Button>
-          <PlaidLink onSuccess={fetchData} />
-        </div>
+        <PlaidLink onSuccess={fetchData} buttonText="Connect a bank" className="flex items-center gap-2">
+          <Plus className="h-4 w-4" />
+          Connect a bank
+        </PlaidLink>
       </div>
 
-      {error && <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">{error}</div>}
-
-      <Tabs defaultValue="connections" className="space-y-6">
-        <TabsList className="inline-flex h-10 items-center justify-center rounded-md bg-muted p-1 text-muted-foreground">
-          <TabsTrigger
-            value="connections"
-            className="rounded-sm px-3 py-1.5 text-sm font-medium transition-all hover:text-foreground data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm"
-          >
-            Bank Connections
-          </TabsTrigger>
-          <TabsTrigger
-            value="link"
-            className="rounded-sm px-3 py-1.5 text-sm font-medium transition-all hover:text-foreground data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm"
-          >
-            Link Accounts
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="connections" className="space-y-6 animate-fade-in">
-          {plaidItems.length > 0 ? (
-            <div className="grid gap-6 md:grid-cols-2">
-              {plaidItems.map((item, index) => (
-                <Card key={item._id} className="hover-card animate-fade-in">
-                  <CardHeader className="pb-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        <div className="rounded-full bg-violet-100 p-2 text-violet-600 dark:bg-violet-900/50 dark:text-violet-300">
-                          <Building className="h-5 w-5" />
-                        </div>
-                        <CardTitle className="text-lg font-medium">{item.institutionName}</CardTitle>
-                      </div>
-                      {getStatusBadge(item.status)}
-                    </div>
-                    <CardDescription className="mt-1">
-                      Last updated: {formatDistanceToNow(new Date(item.lastUpdated), { addSuffix: true })}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                      <h4 className="text-sm font-medium">Connected Accounts</h4>
-                      <div className="space-y-2">
-                        {item.accounts.map((account) => (
-                          <div
-                            key={account.accountId}
-                            className="flex items-center justify-between rounded-md border p-2"
-                          >
-                            <div className="flex items-center space-x-2">
-                              <div className="rounded-full bg-violet-100 p-1.5 text-violet-600 dark:bg-violet-900/50 dark:text-violet-300">
-                                {getAccountIcon(account.type)}
-                              </div>
-                              <div>
-                                <p className="text-sm font-medium">{account.name}</p>
-                                <p className="text-xs text-muted-foreground">
-                                  {account.officialName || account.type} {account.mask ? `••••${account.mask}` : ""}
-                                </p>
-                              </div>
-                            </div>
-                            <div>
-                              {account.linkedAccountId ? (
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="h-7 text-xs"
-                                  onClick={() => handleUnlinkAccount(item._id, account.accountId)}
-                                >
-                                  Unlink
-                                </Button>
-                              ) : (
-                                <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">
-                                  Not Linked
-                                </Badge>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </CardContent>
-                  <CardFooter className="flex justify-between">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleSyncTransactions(item._id)}
-                      disabled={isSyncing[item._id]}
-                    >
-                      {isSyncing[item._id] ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Syncing...
-                        </>
-                      ) : (
-                        <>
-                          <RefreshCw className="mr-2 h-4 w-4" />
-                          Sync Transactions
-                        </>
-                      )}
-                    </Button>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-rose-500 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/50"
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Remove
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Remove Bank Connection</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Are you sure you want to remove this bank connection? This will not delete any transactions
-                            that have already been imported.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={() => handleDeleteItem(item._id)}
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                          >
-                            Remove
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </CardFooter>
-                </Card>
-              ))}
-              <Card className="flex flex-col items-center justify-center p-6 hover-card animate-fade-in">
-                <div className="mb-4 rounded-full bg-violet-100 p-4 text-violet-600 dark:bg-violet-900/50 dark:text-violet-300">
-                  <Building className="h-8 w-8" />
+      {isLoading ? (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {[1, 2, 3].map((i) => (
+            <Card key={i}>
+              <CardHeader className="pb-2">
+                <Skeleton className="h-5 w-40" />
+                <Skeleton className="h-4 w-24" />
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-3/4" />
                 </div>
-                <h3 className="mb-1 text-lg font-medium">Connect a Bank</h3>
-                <p className="mb-4 text-center text-sm text-muted-foreground">
-                  Connect your bank accounts to automatically import transactions
-                </p>
-                <PlaidLink />
-              </Card>
-            </div>
-          ) : (
-            <Card className="flex flex-col items-center justify-center p-12 hover-card animate-fade-in">
-              <div className="mb-4 rounded-full bg-violet-100 p-4 text-violet-600 dark:bg-violet-900/50 dark:text-violet-300">
-                <Building className="h-8 w-8" />
-              </div>
-              <h3 className="mb-1 text-xl font-medium">No Connected Banks</h3>
-              <p className="mb-6 text-center text-muted-foreground max-w-md">
-                Connect your bank accounts to automatically import transactions and keep your finances up to date.
-              </p>
-              <PlaidLink />
+              </CardContent>
             </Card>
-          )}
-        </TabsContent>
-
-        <TabsContent value="link" className="space-y-6 animate-fade-in">
-          {plaidItems.length > 0 ? (
-            <div className="space-y-6">
-              {plaidItems.map((item) => (
-                <Card key={item._id} className="hover-card animate-fade-in">
-                  <CardHeader>
-                    <div className="flex items-center space-x-2">
-                      <div className="rounded-full bg-violet-100 p-2 text-violet-600 dark:bg-violet-900/50 dark:text-violet-300">
-                        <Building className="h-5 w-5" />
-                      </div>
-                      <CardTitle className="text-lg font-medium">{item.institutionName}</CardTitle>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                      <h4 className="text-sm font-medium">Link Bank Accounts to App Accounts</h4>
-                      <div className="space-y-3">
-                        {item.accounts.map((account) => (
-                          <div key={account.accountId} className="rounded-md border p-3">
-                            <div className="flex items-center justify-between mb-3">
-                              <div className="flex items-center space-x-2">
-                                <div className="rounded-full bg-violet-100 p-1.5 text-violet-600 dark:bg-violet-900/50 dark:text-violet-300">
-                                  {getAccountIcon(account.type)}
+          ))}
+        </div>
+      ) : plaidItems.length === 0 ? (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-10">
+            <p className="text-center text-muted-foreground mb-4">
+              You haven't connected any banks yet. Connect a bank to automatically import transactions.
+            </p>
+            <PlaidLink buttonText="Connect your first bank" />
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {plaidItems.map((item) => (
+            <Card key={item._id}>
+              <CardHeader>
+                <CardTitle>{item.institutionName}</CardTitle>
+                <CardDescription>Last updated: {new Date(item.lastUpdated).toLocaleString()}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  <h3 className="font-medium">Accounts</h3>
+                  <ul className="space-y-1">
+                    {item.accounts.map((account) => (
+                      <li key={account.accountId} className="flex justify-between items-center text-sm">
+                        <div>
+                          <span>{account.name}</span>
+                          <span className="text-xs text-muted-foreground ml-2">
+                            {getAccountTypeLabel(account.type, account.subtype)}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {account.linkedAccountId ? (
+                            <Badge variant="outline" className="flex items-center gap-1">
+                              <Link2 className="h-3 w-3" />
+                              {getLinkedAccountName(account)}
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="flex items-center gap-1 text-muted-foreground">
+                              <Unlink className="h-3 w-3" />
+                              Not linked
+                            </Badge>
+                          )}
+                          <Dialog>
+                            <DialogTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-6 w-6">
+                                <Link2 className="h-3 w-3" />
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent>
+                              <DialogHeader>
+                                <DialogTitle>Link Bank Account</DialogTitle>
+                                <DialogDescription>
+                                  Link this bank account to one of your Finflow accounts to automatically import
+                                  transactions.
+                                </DialogDescription>
+                              </DialogHeader>
+                              <div className="grid gap-4 py-4">
+                                <div>
+                                  <h3 className="mb-2 text-sm font-medium">Bank Account</h3>
+                                  <div className="rounded-md border p-3">
+                                    <p className="font-medium">{account.name}</p>
+                                    <p className="text-sm text-muted-foreground">
+                                      {getAccountTypeLabel(account.type, account.subtype)}
+                                    </p>
+                                  </div>
                                 </div>
                                 <div>
-                                  <p className="text-sm font-medium">{account.name}</p>
-                                  <p className="text-xs text-muted-foreground">
-                                    {account.officialName || account.type} {account.mask ? `••••${account.mask}` : ""}
-                                  </p>
+                                  <h3 className="mb-2 text-sm font-medium">Finflow Account</h3>
+                                  <Select onValueChange={setSelectedAccount}>
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Select an account" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {accounts.map((acc) => (
+                                        <SelectItem key={acc._id} value={acc._id}>
+                                          {acc.name} ({acc.type})
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
                                 </div>
                               </div>
-                              {account.linkedAccountId ? (
-                                <Badge className="bg-green-50 text-green-700 border-green-200">
-                                  <CheckCircle className="mr-1 h-3 w-3" /> Linked
-                                </Badge>
-                              ) : (
-                                <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">
-                                  <LinkIcon className="mr-1 h-3 w-3" /> Not Linked
-                                </Badge>
-                              )}
-                            </div>
-
-                            {account.linkedAccountId ? (
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center space-x-2">
-                                  <ArrowRight className="h-4 w-4 text-muted-foreground" />
-                                  <span className="text-sm">
-                                    Linked to: {account.linkedAccountId?.name || "Unknown Account"}
-                                  </span>
-                                </div>
+                              <DialogFooter>
                                 <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="h-7 text-xs"
-                                  onClick={() => handleUnlinkAccount(item._id, account.accountId)}
+                                  onClick={() => handleLinkAccount(item._id, account.accountId, selectedAccount)}
+                                  disabled={!selectedAccount || isLinking}
                                 >
-                                  Unlink
+                                  {isLinking ? "Linking..." : "Link Account"}
                                 </Button>
-                              </div>
-                            ) : (
-                              <div className="flex items-center space-x-2">
-                                <Select
-                                  onValueChange={(value) => handleLinkAccount(item._id, account.accountId, value)}
-                                >
-                                  <SelectTrigger className="w-full">
-                                    <SelectValue placeholder="Select an account to link" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {accounts.map((appAccount) => (
-                                      <SelectItem key={appAccount._id} value={appAccount._id}>
-                                        {appAccount.name} ({appAccount.type})
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </CardContent>
-                  <CardFooter>
-                    <Button variant="outline" size="sm" className="w-full" asChild>
-                      <Link href="/accounts/new">
-                        <Plus className="mr-2 h-4 w-4" />
-                        Create New Account
-                      </Link>
-                    </Button>
-                  </CardFooter>
-                </Card>
-              ))}
-            </div>
-          ) : (
-            <Card className="flex flex-col items-center justify-center p-12 hover-card animate-fade-in">
-              <div className="mb-4 rounded-full bg-violet-100 p-4 text-violet-600 dark:bg-violet-900/50 dark:text-violet-300">
-                <Building className="h-8 w-8" />
-              </div>
-              <h3 className="mb-1 text-xl font-medium">No Connected Banks</h3>
-              <p className="mb-6 text-center text-muted-foreground max-w-md">
-                Connect your bank accounts first, then you can link them to your app accounts.
-              </p>
-              <PlaidLink />
+                              </DialogFooter>
+                            </DialogContent>
+                          </Dialog>
+                          {account.linkedAccountId && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6"
+                              onClick={() => handleUnlinkAccount(item._id, account.accountId)}
+                            >
+                              <Unlink className="h-3 w-3" />
+                            </Button>
+                          )}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </CardContent>
+              <CardFooter className="flex justify-between">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center gap-1"
+                  onClick={() => handleSyncTransactions(item._id)}
+                  disabled={isSyncing}
+                >
+                  <RefreshCw className="h-3 w-3" />
+                  {isSyncing ? "Syncing..." : "Sync Transactions"}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="flex items-center gap-1 text-destructive"
+                  onClick={() => handleDeleteItem(item._id)}
+                >
+                  <Trash2 className="h-3 w-3" />
+                  Disconnect
+                </Button>
+              </CardFooter>
             </Card>
-          )}
-        </TabsContent>
-      </Tabs>
+          ))}
+        </div>
+      )}
+
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Link Bank Account</DialogTitle>
+            <DialogDescription>
+              Link a bank account to one of your Finflow accounts to automatically import transactions.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div>
+              <h3 className="mb-2 text-sm font-medium">Bank</h3>
+              <Select onValueChange={setSelectedPlaidItem}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a bank" />
+                </SelectTrigger>
+                <SelectContent>
+                  {plaidItems.map((item) => (
+                    <SelectItem key={item._id} value={item._id}>
+                      {item.institutionName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {selectedPlaidItem && (
+              <div>
+                <h3 className="mb-2 text-sm font-medium">Bank Account</h3>
+                <Select onValueChange={setSelectedPlaidAccount}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a bank account" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {plaidItems
+                      .find((item) => item._id === selectedPlaidItem)
+                      ?.accounts.map((account) => (
+                        <SelectItem key={account.accountId} value={account.accountId}>
+                          {account.name} ({getAccountTypeLabel(account.type, account.subtype)})
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            <div>
+              <h3 className="mb-2 text-sm font-medium">Finflow Account</h3>
+              <Select onValueChange={setSelectedAccount}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select an account" />
+                </SelectTrigger>
+                <SelectContent>
+                  {accounts.map((account) => (
+                    <SelectItem key={account._id} value={account._id}>
+                      {account.name} ({account.type})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              onClick={handleLinkAccount}
+              disabled={!selectedPlaidItem || !selectedPlaidAccount || !selectedAccount || isLinking}
+            >
+              {isLinking ? "Linking..." : "Link Account"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

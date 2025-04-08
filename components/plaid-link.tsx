@@ -3,39 +3,46 @@
 import { useState, useCallback, useEffect } from "react"
 import { usePlaidLink } from "react-plaid-link"
 import { Button } from "@/components/ui/button"
-import { Loader2, Plus } from "lucide-react"
 import { createLinkToken, exchangePublicToken } from "@/lib/api"
-import { useToast } from "@/components/ui/use-toast"
+import { useToast } from "@/hooks/use-toast"
 
 interface PlaidLinkProps {
   onSuccess?: () => void
+  onExit?: () => void
   buttonText?: string
-  variant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link" | "gradient"
-  size?: "default" | "sm" | "lg" | "icon"
   className?: string
+  variant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link"
 }
 
-export default function PlaidLink({
+export function PlaidLink({
   onSuccess,
-  buttonText = "Connect Bank Account",
-  variant = "gradient",
-  size = "default",
-  className = "",
+  onExit,
+  buttonText = "Connect a bank account",
+  className,
+  variant = "default",
 }: PlaidLinkProps) {
   const [token, setToken] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const { toast } = useToast()
 
-  const getToken = useCallback(async () => {
+  const fetchToken = useCallback(async () => {
     setIsLoading(true)
     try {
       const response = await createLinkToken()
-      setToken(response.link_token)
+      if (response.success) {
+        setToken(response.link_token)
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to create link token",
+          variant: "destructive",
+        })
+      }
     } catch (error) {
-      console.error("Error creating link token:", error)
+      console.error("Error fetching link token:", error)
       toast({
         title: "Error",
-        description: "Failed to initialize bank connection. Please try again.",
+        description: "Failed to create link token",
         variant: "destructive",
       })
     } finally {
@@ -44,34 +51,32 @@ export default function PlaidLink({
   }, [toast])
 
   useEffect(() => {
-    // We don't automatically get the token to avoid unnecessary API calls
-    // The token will be fetched when the user clicks the button
-  }, [])
+    fetchToken()
+  }, [fetchToken])
 
   const onPlaidSuccess = useCallback(
     async (publicToken: string, metadata: any) => {
       setIsLoading(true)
       try {
-        await exchangePublicToken({
-          public_token: publicToken,
-          institution_id: metadata.institution.institution_id,
-          institution_name: metadata.institution.name,
-          accounts: metadata.accounts,
-        })
-
-        toast({
-          title: "Success",
-          description: "Bank account connected successfully!",
-        })
-
-        if (onSuccess) {
-          onSuccess()
+        const response = await exchangePublicToken(publicToken, metadata)
+        if (response.success) {
+          toast({
+            title: "Success",
+            description: "Bank account connected successfully",
+          })
+          if (onSuccess) onSuccess()
+        } else {
+          toast({
+            title: "Error",
+            description: response.message || "Failed to connect bank account",
+            variant: "destructive",
+          })
         }
       } catch (error) {
         console.error("Error exchanging public token:", error)
         toast({
           title: "Error",
-          description: "Failed to connect bank account. Please try again.",
+          description: "Failed to connect bank account",
           variant: "destructive",
         })
       } finally {
@@ -83,46 +88,31 @@ export default function PlaidLink({
 
   const { open, ready } = usePlaidLink({
     token,
-    onSuccess: onPlaidSuccess,
+    onSuccess: (public_token, metadata) => {
+      onPlaidSuccess(public_token, metadata)
+    },
     onExit: (err, metadata) => {
-      // User exited the Link flow
       if (err) {
         console.error("Plaid Link exit error:", err)
       }
-    },
-    onEvent: (eventName, metadata) => {
-      // Optional: track events
-      console.log("Plaid Link event:", eventName, metadata)
+      if (onExit) onExit()
     },
   })
 
-  const handleClick = useCallback(() => {
-    if (token) {
+  const handleClick = () => {
+    if (ready) {
       open()
     } else {
-      getToken()
+      toast({
+        title: "Please wait",
+        description: "Plaid Link is initializing",
+      })
     }
-  }, [token, open, getToken])
-
-  useEffect(() => {
-    if (token && ready) {
-      open()
-    }
-  }, [token, ready, open])
+  }
 
   return (
-    <Button onClick={handleClick} disabled={isLoading} variant={variant} size={size} className={className}>
-      {isLoading ? (
-        <>
-          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          Connecting...
-        </>
-      ) : (
-        <>
-          <Plus className="mr-2 h-4 w-4" />
-          {buttonText}
-        </>
-      )}
+    <Button onClick={handleClick} disabled={!ready || isLoading} className={className} variant={variant}>
+      {isLoading ? "Loading..." : buttonText}
     </Button>
   )
 }

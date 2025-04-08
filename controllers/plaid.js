@@ -26,8 +26,12 @@ export const createLinkTokenController = async (req, res, next) => {
 // Exchange public token for access token and store Plaid item
 export const exchangePublicTokenController = async (req, res, next) => {
   try {
-    const { public_token, institution_id, institution_name, accounts } = req.body
+    const { public_token, metadata } = req.body
     const userId = req.user.id
+
+    // Extract institution data from metadata
+    const institution_id = metadata.institution.institution_id
+    const institution_name = metadata.institution.name
 
     // Exchange public token for access token
     const exchangeResponse = await exchangePublicToken(public_token)
@@ -37,6 +41,10 @@ export const exchangePublicTokenController = async (req, res, next) => {
     // Get item details
     const itemResponse = await getItemById(accessToken)
     const item = itemResponse.item
+
+    // Get accounts
+    const accountsResponse = await getAccounts(accessToken)
+    const accounts = accountsResponse.accounts
 
     // Check if this institution is already connected
     const existingItem = await PlaidItem.findOne({
@@ -56,12 +64,11 @@ export const exchangePublicTokenController = async (req, res, next) => {
       existingItem.consentExpirationTime = item.consent_expiration_time ? new Date(item.consent_expiration_time) : null
 
       // Update accounts
-      const accountsResponse = await getAccounts(accessToken)
-      existingItem.accounts = accountsResponse.accounts.map((account) => ({
+      existingItem.accounts = accounts.map((account) => ({
         accountId: account.account_id,
         mask: account.mask,
         name: account.name,
-        officialName: account.official_name,
+        officialName: account.official_name || "",
         type: account.type,
         subtype: account.subtype,
         linkedAccountId: null, // Will be linked later
@@ -90,10 +97,10 @@ export const exchangePublicTokenController = async (req, res, next) => {
         billedProducts: item.billed_products,
         consentExpirationTime: item.consent_expiration_time ? new Date(item.consent_expiration_time) : null,
         accounts: accounts.map((account) => ({
-          accountId: account.id,
+          accountId: account.account_id,
           mask: account.mask,
           name: account.name,
-          officialName: account.official_name,
+          officialName: account.official_name || "",
           type: account.type,
           subtype: account.subtype,
           linkedAccountId: null, // Will be linked later
@@ -329,7 +336,7 @@ async function syncTransactionsForItem(plaidItem, user) {
           const categoryName = transaction.category[transaction.category.length - 1]
           category = await Category.findOne({
             userId,
-            name: { $regex: new RegExp(`^${categoryName}$`, "i") },
+            name: { $regex: new RegExp(`^${categoryName}`, "i") },
           })
 
           if (!category) {
@@ -393,7 +400,7 @@ async function syncTransactionsForItem(plaidItem, user) {
           const categoryName = transaction.category[transaction.category.length - 1]
           category = await Category.findOne({
             userId,
-            name: { $regex: new RegExp(`^${categoryName}$`, "i") },
+            name: { $regex: new RegExp(`^${categoryName}`, "i") },
           })
 
           if (!category) {

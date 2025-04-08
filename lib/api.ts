@@ -199,39 +199,49 @@ export const getAverageMonthlyData = () => fetchWithAuth("/projections/average-m
 export const getCategoryAverages = () => fetchWithAuth("/projections/category-averages")
 
 // Plaid
-export const createLinkToken = () =>
-  fetchWithAuth("/plaid/create-link-token", {
+export const createLinkToken = async () => {
+  return fetchWithAuth("/api/plaid/create-link-token", {
     method: "POST",
   })
+}
 
-export const exchangePublicToken = (data: any) =>
-  fetchWithAuth("/plaid/exchange-public-token", {
+export const exchangePublicToken = async (publicToken: string, metadata: any) => {
+  return fetchWithAuth("/api/plaid/exchange-public-token", {
     method: "POST",
-    body: JSON.stringify(data),
+    body: JSON.stringify({ public_token: publicToken, metadata }),
   })
+}
 
-export const getPlaidItems = () => fetchWithAuth("/plaid/items")
+export const getPlaidItems = async () => {
+  return fetchWithAuth("/api/plaid/items")
+}
 
-export const getPlaidItem = (id: string) => fetchWithAuth(`/plaid/items/${id}`)
+export const getPlaidItem = async (id: string) => {
+  return fetchWithAuth(`/api/plaid/items/${id}`)
+}
 
-export const deletePlaidItem = (id: string) =>
-  fetchWithAuth(`/plaid/items/${id}`, {
+export const deletePlaidItem = async (id: string) => {
+  return fetchWithAuth(`/api/plaid/items/${id}`, {
     method: "DELETE",
   })
+}
 
-export const linkPlaidAccount = (data: any) =>
-  fetchWithAuth("/plaid/link-account", {
+export const linkPlaidAccount = async (plaidItemId: string, plaidAccountId: string, accountId: string) => {
+  return fetchWithAuth("/api/plaid/link-account", {
     method: "POST",
-    body: JSON.stringify(data),
+    body: JSON.stringify({ plaidItemId, plaidAccountId, accountId }),
   })
+}
 
-export const unlinkPlaidAccount = (data: any) =>
-  fetchWithAuth("/plaid/unlink-account", {
+export const unlinkPlaidAccount = async (plaidItemId: string, plaidAccountId: string) => {
+  return fetchWithAuth("/api/plaid/unlink-account", {
     method: "POST",
-    body: JSON.stringify(data),
+    body: JSON.stringify({ plaidItemId, plaidAccountId }),
   })
+}
 
-export const syncPlaidTransactions = (id: string) =>
-  fetchWithAuth(`/plaid/sync/${id}`, {
+export const syncTransactions = async (plaidItemId: string) => {
+  return fetchWithAuth(`/api/plaid/sync-transactions/${plaidItemId}`, {
     method: "POST",
   })
+}

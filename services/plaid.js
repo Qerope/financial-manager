@@ -27,7 +27,7 @@ export const createLinkToken = async (userId, clientUserId) => {
       },
       client_name: "Finflow",
       products: ["transactions"],
-      country_codes: ["CA", "US", "GB", "FR"],
+      country_codes: ["CA"],
       language: "en",
     }
 
