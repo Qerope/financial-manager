@@ -70,5 +70,8 @@ const PlaidItemSchema = new mongoose.Schema(
   { timestamps: true },
 )
 
-const PlaidItem = mongoose.models.PlaidItem || mongoose.model("PlaidItem", PlaidItemSchema)
-export default PlaidItem
+delete mongoose.models.PlaidItem;
+delete mongoose.modelSchemas.PlaidItem;
+
+const PlaidItem = mongoose.model("PlaidItem", PlaidItemSchema);
+export default PlaidItem;
