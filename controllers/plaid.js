@@ -89,7 +89,7 @@ export const exchangePublicTokenController = async (req, res, next) => {
         availableProducts: item.available_products,
         billedProducts: item.billed_products,
         consentExpirationTime: item.consent_expiration_time ? new Date(item.consent_expiration_time) : null,
-        accounts: accounts: Array.isArray(accounts) ? accounts.map((account) => ({
+        accounts: Array.isArray(accounts) ? accounts.map((account) => ({
           accountId: account.id,
           mask: account.mask,
           name: account.name,
