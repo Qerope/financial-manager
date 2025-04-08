@@ -29,7 +29,7 @@ export const exchangePublicTokenController = async (req, res, next) => {
     const { public_token, institution_id, institution_name, accounts } = req.body
 
     accounts.forEach((account, index) => {
-      console.log(`Account ${type} ${index}:`, typeof account, account);
+      console.log(`Account ${index}:`, typeof account, account);
     });
 
     const userId = req.user.id
