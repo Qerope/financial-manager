@@ -70,7 +70,12 @@ const PlaidItemSchema = new mongoose.Schema(
   { timestamps: true },
 )
 
-delete mongoose.models.PlaidItem;
+const PlaidItem = mongoose.models.PlaidItem || mongoose.model("PlaidItem", PlaidItemSchema)
 
-const PlaidItem = mongoose.model("PlaidItem", PlaidItemSchema);
-export default PlaidItem;
+console.log(JSON.stringify(PlaidItemSchema.obj, null, 2));
+console.log("PlaidItem schema for 'accounts':", PlaidItem.schema.path("accounts"));
+console.log("PlaidItem schema for 'accounts.0':", PlaidItem.schema.path("accounts.0"));
+console.log("Is 'accounts' an array?", Array.isArray(PlaidItemSchema.obj.accounts));
+console.log("First account shape:", PlaidItemSchema.obj.accounts[0]);
+
+export default PlaidItem
