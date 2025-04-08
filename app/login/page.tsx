@@ -43,7 +43,7 @@ export default function LoginPage() {
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-xl bg-primary shadow-lg">
             <span className="text-2xl font-bold text-white">F</span>
           </div>
-          <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white">Finflow</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white">FinTrack</h1>
           <p className="mt-2 text-gray-600 dark:text-gray-400">Your personal finance manager</p>
         </div>
 
@@ -114,4 +114,3 @@ export default function LoginPage() {
     </div>
   )
 }
-

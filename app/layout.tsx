@@ -30,7 +30,7 @@ export const metadata: Metadata = {
       { url: "/finc/icon-192x192.png", type: "image/png", sizes: "192x192" },
       { url: "/finc/icon-512x512.png", type: "image/png", sizes: "512x512" },
     ],
-    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180" }],
+    apple: [{ url: "/finc/apple-touch-icon.png", sizes: "180x180" }],
   },
 }
 
@@ -50,8 +50,8 @@ export default function RootLayout({
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="msapplication-TileColor" content="#7c3aed" />
         <meta name="msapplication-tap-highlight" content="no" />
-        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-        <link rel="apple-touch-startup-image" href="/splash.png" />
+        <link rel="apple-touch-icon" href="/finc/apple-touch-icon.png" />
+        <link rel="apple-touch-startup-image" href="/finc/splash.png" />
       </head>
       <body className={inter.className}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
@@ -64,4 +64,3 @@ export default function RootLayout({
     </html>
   )
 }
-

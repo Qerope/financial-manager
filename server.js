@@ -17,6 +17,7 @@ import reportRoutes from "./routes/reports.js"
 import recurringRoutes from "./routes/recurring.js"
 import dashboardRoutes from "./routes/dashboard.js"
 import projectionRoutes from "./routes/projections.js"
+import plaidRoutes from "./routes/plaid.js"
 
 // Middleware
 dotenv.config()
@@ -37,9 +38,9 @@ app.use("/finc/api/budgets", budgetRoutes)
 app.use("/finc/api/goals", goalRoutes)
 app.use("/finc/api/reports", reportRoutes)
 app.use("/finc/api/recurring", recurringRoutes)
-// Add the dashboard route mounting after the other route mountings
 app.use("/finc/api/dashboard", dashboardRoutes)
 app.use("/finc/api/projections", projectionRoutes)
+app.use("/finc/api/plaid", plaidRoutes)
 
 // Error handling middleware
 app.use((err, req, res, next) => {
@@ -60,4 +61,3 @@ mongoose
     app.listen(PORT, () => console.log(`Server running on port: ${PORT}`))
   })
   .catch((error) => console.log(`${error} did not connect`))
-

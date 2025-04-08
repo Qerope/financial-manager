@@ -18,6 +18,7 @@ import {
   Loader2,
   TrendingUp,
   ArrowRight,
+  Building,
 } from "lucide-react"
 import { formatCurrency } from "@/lib/utils"
 import { getAccounts, deleteAccount } from "@/lib/api"
@@ -33,6 +34,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { useToast } from "@/components/ui/use-toast"
+import PlaidLink from "@/components/plaid-link"
 
 export default function AccountsPage() {
   const { user } = useAuth()
@@ -124,12 +126,20 @@ export default function AccountsPage() {
           <h1 className="text-3xl font-bold tracking-tight">Accounts</h1>
           <p className="text-muted-foreground">Manage your financial accounts</p>
         </div>
-        <Button asChild variant="gradient" className="shadow-sm">
-          <Link href="/accounts/new">
-            <Plus className="mr-2 h-4 w-4" />
-            Add Account
-          </Link>
-        </Button>
+        <div className="flex flex-col space-y-2 sm:flex-row sm:space-x-2 sm:space-y-0">
+          <Button asChild variant="outline" className="shadow-sm">
+            <Link href="/accounts/connect">
+              <Building className="mr-2 h-4 w-4" />
+              Connect Bank
+            </Link>
+          </Button>
+          <Button asChild variant="gradient" className="shadow-sm">
+            <Link href="/accounts/new">
+              <Plus className="mr-2 h-4 w-4" />
+              Add Account
+            </Link>
+          </Button>
+        </div>
       </div>
 
       {error && <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">{error}</div>}
@@ -255,12 +265,15 @@ export default function AccountsPage() {
               </div>
               <h3 className="mb-1 text-lg font-medium">Add Account</h3>
               <p className="mb-4 text-center text-sm text-muted-foreground">Add a new bank account or credit card</p>
-              <Button asChild variant="gradient" className="shadow-sm">
-                <Link href="/accounts/new">
-                  <Plus className="mr-2 h-4 w-4" />
-                  Add Account
-                </Link>
-              </Button>
+              <div className="flex flex-col space-y-2 w-full">
+                <PlaidLink buttonText="Connect Bank Account" className="w-full" />
+                <Button asChild variant="outline" className="w-full">
+                  <Link href="/accounts/new">
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add Manual Account
+                  </Link>
+                </Button>
+              </div>
             </Card>
           </div>
         </TabsContent>
@@ -339,4 +352,3 @@ export default function AccountsPage() {
     </div>
   )
 }
-

@@ -2,7 +2,7 @@
   "name": "Finflow - Personal Finance Manager",
   "short_name": "Finflow",
   "description": "Track your finances, budgets, and financial goals with ease",
-  "start_url": "/finc",
+  "start_url": "/finc/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#7c3aed",
@@ -35,23 +35,22 @@
       "name": "Dashboard",
       "short_name": "Dashboard",
       "description": "View your financial overview",
-      "url": "/dashboard",
+      "url": "/finc/dashboard",
       "icons": [{ "src": "/finc/icon-192x192.png", "sizes": "192x192" }]
     },
     {
       "name": "Add Transaction",
       "short_name": "Add",
       "description": "Add a new transaction",
-      "url": "/transactions/new",
+      "url": "/finc/transactions/new",
       "icons": [{ "src": "/finc/icon-192x192.png", "sizes": "192x192" }]
     },
     {
       "name": "Projections",
       "short_name": "Projections",
       "description": "View financial projections",
-      "url": "/projections",
+      "url": "/finc/projections",
       "icons": [{ "src": "/finc/icon-192x192.png", "sizes": "192x192" }]
     }
   ]
 }
-

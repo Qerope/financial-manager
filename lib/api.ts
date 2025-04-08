@@ -198,3 +198,40 @@ export const getDashboardData = () => fetchWithAuth("/dashboard")
 export const getAverageMonthlyData = () => fetchWithAuth("/projections/average-monthly")
 export const getCategoryAverages = () => fetchWithAuth("/projections/category-averages")
 
+// Plaid
+export const createLinkToken = () =>
+  fetchWithAuth("/plaid/create-link-token", {
+    method: "POST",
+  })
+
+export const exchangePublicToken = (data: any) =>
+  fetchWithAuth("/plaid/exchange-public-token", {
+    method: "POST",
+    body: JSON.stringify(data),
+  })
+
+export const getPlaidItems = () => fetchWithAuth("/plaid/items")
+
+export const getPlaidItem = (id: string) => fetchWithAuth(`/plaid/items/${id}`)
+
+export const deletePlaidItem = (id: string) =>
+  fetchWithAuth(`/plaid/items/${id}`, {
+    method: "DELETE",
+  })
+
+export const linkPlaidAccount = (data: any) =>
+  fetchWithAuth("/plaid/link-account", {
+    method: "POST",
+    body: JSON.stringify(data),
+  })
+
+export const unlinkPlaidAccount = (data: any) =>
+  fetchWithAuth("/plaid/unlink-account", {
+    method: "POST",
+    body: JSON.stringify(data),
+  })
+
+export const syncPlaidTransactions = (id: string) =>
+  fetchWithAuth(`/plaid/sync/${id}`, {
+    method: "POST",
+  })
