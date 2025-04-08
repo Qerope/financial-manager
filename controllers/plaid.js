@@ -28,7 +28,9 @@ export const exchangePublicTokenController = async (req, res, next) => {
   try {
     const { public_token, institution_id, institution_name, accounts } = req.body
 
-    console.log("Accounts before saving:", typeof accounts, accounts);
+    accounts.forEach((account, index) => {
+      console.log(`Account ${type} ${index}:`, typeof account, account);
+    });
 
     const userId = req.user.id
 
@@ -92,21 +94,13 @@ export const exchangePublicTokenController = async (req, res, next) => {
         availableProducts: item.available_products,
         billedProducts: item.billed_products,
         consentExpirationTime: item.consent_expiration_time ? new Date(item.consent_expiration_time) : null,
-        accounts: Array.isArray(accounts) ? accounts.map((account) => ({
-          accountId: account.id,
-          mask: account.mask,
-          name: account.name,
-          officialName: '',
-          type: account.type,
-          subtype: account.subtype,
-          linkedAccountId: null, // Will be linked later
-        })) : JSON.parse(accounts).map((account) => ({
-          accountId: account.id,
-          mask: account.mask,
-          name: account.name,
-          officialName: '',
-          type: account.type,
-          subtype: account.subtype,
+        accounts: accounts.map((account) => ({
+          accountId: account.accountId || account.id, // Handle both possible field names
+          mask: account.mask || '',
+          name: account.name || '',
+          officialName: account.officialName || '',
+          type: account.type || '',
+          subtype: account.subtype || '',
           linkedAccountId: null, // Will be linked later
         })),
       })
