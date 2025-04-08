@@ -79,16 +79,28 @@ export const exchangePublicTokenController = async (req, res, next) => {
       })
     } else {
       // Create a new Plaid item
-      console.log(accounts)
-      console.log(accounts.map((account) => ({
-        accountId: account.id,
-        mask: account.mask,
-        name: account.name,
-        officialName: null,
-        type: account.type,
-        subtype: account.subtype,
-        linkedAccountId: null,
-      })))
+      console.log(
+        {
+          userId,
+          institutionId: institution_id,
+          institutionName: institution_name,
+          accessToken,
+          itemId,
+          status: "good",
+          availableProducts: item.available_products,
+          billedProducts: item.billed_products,
+          consentExpirationTime: item.consent_expiration_time ? new Date(item.consent_expiration_time) : null,
+          accounts: accounts.map((account) => ({
+            accountId: account.id,
+            mask: account.mask,
+            name: account.name,
+            officialName: '',
+            type: account.type,
+            subtype: account.subtype,
+            linkedAccountId: null, // Will be linked later
+          }
+        }
+      )
       const newPlaidItem = new PlaidItem({
         userId,
         institutionId: institution_id,
@@ -103,7 +115,7 @@ export const exchangePublicTokenController = async (req, res, next) => {
           accountId: account.id,
           mask: account.mask,
           name: account.name,
-          officialName: account.official_name,
+          officialName: '',
           type: account.type,
           subtype: account.subtype,
           linkedAccountId: null, // Will be linked later
