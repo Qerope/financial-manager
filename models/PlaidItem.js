@@ -50,7 +50,7 @@ const PlaidItemSchema = new mongoose.Schema(
     },
     accounts: {
       type: [
-        {
+        new mongoose.Schema({
           accountId: String,
           mask: String,
           name: String,
@@ -62,7 +62,7 @@ const PlaidItemSchema = new mongoose.Schema(
             ref: "Account",
             default: null,
           },
-        },
+        }, { _id: false }) 
       ],
       default: [],
     },
@@ -71,11 +71,4 @@ const PlaidItemSchema = new mongoose.Schema(
 )
 
 const PlaidItem = mongoose.models.PlaidItem || mongoose.model("PlaidItem", PlaidItemSchema)
-
-console.log(JSON.stringify(PlaidItemSchema.obj, null, 2));
-console.log("PlaidItem schema for 'accounts':", PlaidItem.schema.path("accounts"));
-console.log("PlaidItem schema for 'accounts.0':", PlaidItem.schema.path("accounts.0"));
-console.log("Is 'accounts' an array?", Array.isArray(PlaidItemSchema.obj.accounts));
-console.log("First account shape:", PlaidItemSchema.obj.accounts[0]);
-
 export default PlaidItem
