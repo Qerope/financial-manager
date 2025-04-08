@@ -80,6 +80,15 @@ export const exchangePublicTokenController = async (req, res, next) => {
     } else {
       // Create a new Plaid item
       console.log(accounts)
+      console.log(accounts.map((account) => ({
+        accountId: account.id,
+        mask: account.mask,
+        name: account.name,
+        officialName: account.official_name,
+        type: account.type,
+        subtype: account.subtype,
+        linkedAccountId: null, // Will be linked later
+      })))
       const newPlaidItem = new PlaidItem({
         userId,
         institutionId: institution_id,
