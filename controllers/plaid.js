@@ -79,6 +79,7 @@ export const exchangePublicTokenController = async (req, res, next) => {
       })
     } else {
       // Create a new Plaid item
+      console.log(accounts)
       const newPlaidItem = new PlaidItem({
         userId,
         institutionId: institution_id,
