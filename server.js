@@ -1,7 +1,11 @@
 import express from "express"
 import mongoose from "mongoose"
-import dotenv from "dotenv"
 import cors from "cors"
+import dotenv from "dotenv"
+import helmet from "helmet"
+import morgan from "morgan"
+
+// Route imports
 import authRoutes from "./routes/auth.js"
 import userRoutes from "./routes/users.js"
 import accountRoutes from "./routes/accounts.js"
@@ -12,18 +16,14 @@ import goalRoutes from "./routes/goals.js"
 import reportRoutes from "./routes/reports.js"
 import recurringRoutes from "./routes/recurring.js"
 import dashboardRoutes from "./routes/dashboard.js"
-import projectionsRoutes from "./routes/projections.js"
+import projectionRoutes from "./routes/projections.js"
 import plaidRoutes from "./routes/plaid.js"
 
-dotenv.config()
-
-const app = express()
-const PORT = process.env.PORT || 5000
-const MONGODB_URI = process.env.MONGO_URI || "mongodb://localhost:27017/finance-app"
-
 // Middleware
-app.use(cors())
+dotenv.config()
+const app = express()
 app.use(express.json())
+app.use(morgan("common"))
 
 // Routes
 app.use("/finc/api/auth", authRoutes)
@@ -36,32 +36,25 @@ app.use("/finc/api/goals", goalRoutes)
 app.use("/finc/api/reports", reportRoutes)
 app.use("/finc/api/recurring", recurringRoutes)
 app.use("/finc/api/dashboard", dashboardRoutes)
-app.use("/finc/api/projections", projectionsRoutes)
+app.use("/finc/api/projections", projectionRoutes)
 app.use("/finc/api/plaid", plaidRoutes)
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-  const errorStatus = err.status || 500
-  const errorMessage = err.message || "Something went wrong!"
-  return res.status(errorStatus).json({
+  const statusCode = err.statusCode || 500
+  const message = err.message || "Internal Server Error"
+  return res.status(statusCode).json({
     success: false,
-    statusCode: errorStatus,
-    message: errorMessage,
-    stack: process.env.NODE_ENV === "development" ? err.stack : {},
+    statusCode,
+    message,
   })
 })
 
-// Connect to MongoDB
+// MongoDB Connection
+const PORT = process.env.PORT || 5000
 mongoose
-  .connect(MONGODB_URI)
+  .connect(process.env.MONGO_URI)
   .then(() => {
-    console.log("Connected to MongoDB")
-    app.listen(PORT, () => {
-      console.log(`Server is running on port ${PORT}`)
-    })
+    app.listen(PORT, () => console.log(`Server running on port: ${PORT}`))
   })
-  .catch((err) => {
-    console.error("Error connecting to MongoDB:", err)
-  })
-
-export default app
+  .catch((error) => console.log(`${error} did not connect`))

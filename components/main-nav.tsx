@@ -5,86 +5,93 @@ import type React from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
-import { Home, CreditCard, DollarSign, PieChart, BarChart3, Target, Settings, TrendingUp, Link2 } from "lucide-react"
+import {
+  LayoutDashboard,
+  CreditCard,
+  ArrowRightLeft,
+  PieChart,
+  BarChart3,
+  Target,
+  Settings,
+  TrendingUp,
+  Building,
+} from "lucide-react"
 
 export function MainNav({ className, ...props }: React.HTMLAttributes<HTMLElement>) {
   const pathname = usePathname()
 
   const routes = [
     {
+      name: "Dashboard",
       href: "/dashboard",
-      label: "Dashboard",
+      icon: LayoutDashboard,
       active: pathname === "/dashboard",
-      icon: Home,
     },
     {
+      name: "Accounts",
       href: "/accounts",
-      label: "Accounts",
-      active: pathname === "/accounts" || pathname.startsWith("/accounts/"),
       icon: CreditCard,
+      active: pathname === "/accounts" || pathname.startsWith("/accounts/"),
     },
     {
+      name: "Connected Banks",
       href: "/accounts/connect",
-      label: "Connect Banks",
+      icon: Building,
       active: pathname === "/accounts/connect",
-      icon: Link2,
     },
     {
+      name: "Transactions",
       href: "/transactions",
-      label: "Transactions",
+      icon: ArrowRightLeft,
       active: pathname === "/transactions" || pathname.startsWith("/transactions/"),
-      icon: DollarSign,
     },
     {
+      name: "Categories",
       href: "/categories",
-      label: "Categories",
-      active: pathname === "/categories" || pathname.startsWith("/categories/"),
       icon: PieChart,
+      active: pathname === "/categories" || pathname.startsWith("/categories/"),
     },
     {
+      name: "Budgets",
       href: "/budgets",
-      label: "Budgets",
-      active: pathname === "/budgets" || pathname.startsWith("/budgets/"),
       icon: BarChart3,
+      active: pathname === "/budgets" || pathname.startsWith("/budgets/"),
     },
     {
-      href: "/projections",
-      label: "Projections",
-      active: pathname === "/projections",
-      icon: TrendingUp,
-    },
-    {
+      name: "Goals",
       href: "/goals",
-      label: "Goals",
-      active: pathname === "/goals" || pathname.startsWith("/goals/"),
       icon: Target,
+      active: pathname === "/goals" || pathname.startsWith("/goals/"),
     },
     {
+      name: "Projections",
+      href: "/projections",
+      icon: TrendingUp,
+      active: pathname === "/projections",
+    },
+    {
+      name: "Settings",
       href: "/settings",
-      label: "Settings",
-      active: pathname === "/settings",
       icon: Settings,
+      active: pathname === "/settings",
     },
   ]
 
   return (
     <nav className={cn("flex items-center space-x-4 lg:space-x-6", className)} {...props}>
-      {routes.map((route) => {
-        const Icon = route.icon
-        return (
-          <Link
-            key={route.href}
-            href={route.href}
-            className={cn(
-              "flex items-center text-sm font-medium transition-colors hover:text-primary",
-              route.active ? "text-primary" : "text-muted-foreground",
-            )}
-          >
-            <Icon className="mr-2 h-4 w-4" />
-            {route.label}
-          </Link>
-        )
-      })}
+      {routes.map((route) => (
+        <Link
+          key={route.href}
+          href={route.href}
+          className={cn(
+            "flex items-center text-sm font-medium transition-colors hover:text-primary",
+            route.active ? "text-primary" : "text-muted-foreground",
+          )}
+        >
+          <route.icon className="mr-2 h-4 w-4" />
+          {route.name}
+        </Link>
+      ))}
     </nav>
   )
 }

@@ -1,5 +1,4 @@
 import express from "express"
-import { verifyToken } from "../middleware/auth.js"
 import {
   createLinkTokenController,
   exchangePublicTokenController,
@@ -10,13 +9,14 @@ import {
   unlinkPlaidAccount,
   syncTransactionsController,
 } from "../controllers/plaid.js"
+import { verifyToken } from "../middleware/auth.js"
 
 const router = express.Router()
 
 // Create a link token
 router.post("/create-link-token", verifyToken, createLinkTokenController)
 
-// Exchange public token for access token
+// Exchange public token
 router.post("/exchange-public-token", verifyToken, exchangePublicTokenController)
 
 // Get all Plaid items for a user
@@ -35,6 +35,6 @@ router.post("/link-account", verifyToken, linkPlaidAccount)
 router.post("/unlink-account", verifyToken, unlinkPlaidAccount)
 
 // Sync transactions for a Plaid item
-router.post("/sync-transactions/:id", verifyToken, syncTransactionsController)
+router.post("/sync/:id", verifyToken, syncTransactionsController)
 
 export default router
