@@ -71,7 +71,6 @@ const PlaidItemSchema = new mongoose.Schema(
 )
 
 delete mongoose.models.PlaidItem;
-delete mongoose.modelSchemas.PlaidItem;
 
 const PlaidItem = mongoose.model("PlaidItem", PlaidItemSchema);
 export default PlaidItem;
