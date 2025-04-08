@@ -83,6 +83,12 @@ export const exchangePublicTokenController = async (req, res, next) => {
         item: existingItem,
       })
     } else {
+      console.log(JSON.stringify(PlaidItemSchema.obj, null, 2));
+      console.log("PlaidItem schema for 'accounts':", PlaidItem.schema.path("accounts"));
+      console.log("PlaidItem schema for 'accounts.0':", PlaidItem.schema.path("accounts.0"));
+      console.log("Is 'accounts' an array?", Array.isArray(PlaidItemSchema.obj.accounts));
+      console.log("First account shape:", PlaidItemSchema.obj.accounts[0]);
+      
       // Create a new Plaid item
       const newPlaidItem = new PlaidItem({
         userId,
