@@ -83,6 +83,27 @@ export const exchangePublicTokenController = async (req, res, next) => {
         item: existingItem,
       })
     } else {
+      const testItem = new PlaidItem({
+        userId,
+        institutionId: institution_id,
+        institutionName: institution_name,
+        accessToken,
+        itemId,
+        accounts: [
+          {
+            accountId: "test123",
+            mask: "9999",
+            name: "Test Account",
+            officialName: "",
+            type: "depository",
+            subtype: "checking",
+            linkedAccountId: null,
+          }
+        ],
+      });
+      
+      await testItem.save();
+
       // Create a new Plaid item
       const newPlaidItem = new PlaidItem({
         userId,

@@ -48,21 +48,24 @@ const PlaidItemSchema = new mongoose.Schema(
       type: [String],
       default: [],
     },
-    accounts: [
-      {
-        accountId: String,
-        mask: String,
-        name: String,
-        officialName: String,
-        type: String,
-        subtype: String,
-        linkedAccountId: {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: "Account",
-          default: null,
+    accounts: {
+      type: [
+        {
+          accountId: String,
+          mask: String,
+          name: String,
+          officialName: String,
+          type: String,
+          subtype: String,
+          linkedAccountId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Account",
+            default: null,
+          },
         },
-      },
-    ],
+      ],
+      default: [],
+    },
   },
   { timestamps: true },
 )
