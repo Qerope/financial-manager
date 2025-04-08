@@ -74,7 +74,7 @@ export default function EditAccountPage({ params }: { params: { id: string } }) 
     const fetchAccount = async () => {
       try {
         setIsLoading(true)
-        const data = await fetchWithAuth(`/api/accounts/${params.id}`)
+        const data = await fetchWithAuth(`/accounts/${params.id}`)
         setAccount({
           name: data.name,
           type: data.type,
@@ -122,7 +122,7 @@ export default function EditAccountPage({ params }: { params: { id: string } }) 
       setIsSaving(true)
       setError("")
 
-      await fetchWithAuth(`/api/accounts/${params.id}`, {
+      await fetchWithAuth(`/accounts/${params.id}`, {
         method: "PUT",
         body: JSON.stringify(account),
       })
@@ -150,7 +150,7 @@ export default function EditAccountPage({ params }: { params: { id: string } }) 
     try {
       setIsDeleting(true)
 
-      await fetchWithAuth(`/api/accounts/${params.id}`, {
+      await fetchWithAuth(`/accounts/${params.id}`, {
         method: "DELETE",
       })
 
