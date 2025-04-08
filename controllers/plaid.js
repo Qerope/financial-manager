@@ -27,6 +27,9 @@ export const createLinkTokenController = async (req, res, next) => {
 export const exchangePublicTokenController = async (req, res, next) => {
   try {
     const { public_token, institution_id, institution_name, accounts } = req.body
+
+    console.log("Accounts before saving:", typeof accounts, accounts);
+
     const userId = req.user.id
 
     // Exchange public token for access token
